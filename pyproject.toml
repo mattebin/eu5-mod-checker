@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eu5-mod-lint"
+version = "0.1.0"
+description = "Catches silent engine traps in Europa Universalis V mods"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "mattebin" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Games/Entertainment",
+]
+
+[project.scripts]
+eu5lint = "eu5lint.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mattebin/eu5-mod-lint"
+
+[tool.setuptools.packages.find]
+include = ["eu5lint*"]
