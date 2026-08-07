@@ -49,6 +49,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--no-vanilla", action="store_true",
         help="skip vanilla auto-detection and run only self-contained rules")
     parser.add_argument(
+        "--game-version",
+        help=(
+            "your game version, for example 1.3.11. Auto-detected from "
+            "continue_game.json when omitted. Used to warn when the game "
+            "is newer than the version the rules were verified on."))
+    parser.add_argument(
         "--format", choices=("text", "json"), default="text")
     parser.add_argument(
         "--rules", help="comma-separated rule ids to run (default: all)")
@@ -88,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     enabled = set(args.rules.split(",")) if args.rules else None
     disabled = set(args.disable.split(",")) if args.disable else None
 
+    from .gameversion import (VERIFIED_GAME_VERSION, detect_game_version,
+                              version_notice)
+    detected_version = args.game_version or detect_game_version()
+    notice, _is_warning = version_notice(detected_version)
+
     findings, skipped = run(mod_path, vanilla, enabled, disabled)
 
     errors = sum(1 for f in findings if f.severity == "error")
@@ -98,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "mod": str(mod_path),
             "vanilla": str(vanilla) if vanilla else None,
+            "rules_verified_on": VERIFIED_GAME_VERSION,
+            "detected_game_version": detected_version,
             "skipped_rules": skipped,
             "summary": {"errors": errors, "warnings": warnings,
                         "infos": infos},
@@ -113,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("vanilla: not found (vanilla-aware rules skipped, "
                   "pass --vanilla to enable)")
+        print(notice)
         for f in findings:
             try:
                 shown = f.path.relative_to(mod_path)

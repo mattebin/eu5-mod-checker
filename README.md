@@ -65,6 +65,23 @@ my_block = { # eu5lint:ignore E003
 `--format json` prints machine-readable output. Exit code is 1 when there
 are errors, 0 otherwise. Add `--strict` to fail on warnings too.
 
+## Game updates
+
+Rules split into three tiers for version resilience:
+
+1. **Vanilla-aware rules (E004, W101, W102) update themselves.** They read
+   your installed game at run time instead of hardcoding any vanilla
+   content, so a game patch automatically refreshes what they check
+   against.
+2. **Parse-behavior rules (E001, E005, E006) encode engine fundamentals**
+   that are stable across patches.
+3. **Engine-behavior rules could in principle be fixed by Paradox** (the
+   best outcome for everyone). Because of that, the tool states the game
+   version its rules were last verified on, auto-detects your version,
+   and warns you to treat findings as provisional when your game is
+   newer. Every rule gets re-verified against each game patch before the
+   verified version is bumped.
+
 ## What this is not
 
 It is not a schema validator. CWTools and similar editor extensions check
