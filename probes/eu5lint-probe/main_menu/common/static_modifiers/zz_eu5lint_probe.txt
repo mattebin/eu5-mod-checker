@@ -1,0 +1,24 @@
+﻿# eu5lint rule probe: E004 (invented static-modifier block names).
+# Expected: the invented block appears NOWHERE (the scaled system applies
+# blocks by engine-known name only), with no error.log line. The capital
+# block is vanilla's own definition copied with ONE added line as the
+# visible control: +5 local unrest on every capital.
+lint_probe_e004_invented = {
+	game_data = { category = location }
+	local_unrest = 5
+}
+
+capital = {
+	game_data = {
+		category = location
+	}
+	local_proximity_source = 100
+	local_max_control = 0.20
+	local_population_capacity_modifier = 0.10
+	local_migration_attraction = 0.025
+	local_nobles_desired_pop_scaled = 0.002
+	local_clergy_desired_pop_scaled = 0.002
+	local_fort_maintenance_efficiency = 1.00
+	free_building_levels = 5
+	local_unrest = 5
+}

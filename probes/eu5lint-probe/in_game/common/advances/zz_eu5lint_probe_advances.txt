@@ -1,0 +1,39 @@
+﻿# eu5lint rule probe: E001 (forward reference) and E002 (in_tree_of
+# target that is not a root). Verification is error.log only, nothing
+# to observe in game.
+# Expected for E001: a 'Failed to read key reference' style line for
+# lint_probe_e001_parent (referenced before its definition below).
+lint_probe_e001_child = {
+	age = age_1_traditions
+	requires = lint_probe_e001_parent
+	research_cost = 1.0
+	monthly_prestige = 0.01
+}
+
+lint_probe_e001_parent = {
+	age = age_1_traditions
+	research_cost = 1.0
+	monthly_prestige = 0.01
+}
+
+# Expected for E002: a 'has in_tree_of that is not a root' style line
+# for lint_probe_e002_hub (it has requires, so it is not a root).
+lint_probe_e002_base = {
+	age = age_1_traditions
+	research_cost = 1.0
+	monthly_prestige = 0.01
+}
+
+lint_probe_e002_hub = {
+	age = age_1_traditions
+	requires = lint_probe_e002_base
+	research_cost = 1.0
+	monthly_prestige = 0.01
+}
+
+lint_probe_e002_leaf = {
+	age = age_1_traditions
+	in_tree_of = lint_probe_e002_hub
+	research_cost = 1.0
+	monthly_prestige = 0.01
+}

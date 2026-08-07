@@ -13,12 +13,9 @@ import difflib
 from .engine import Context, Finding, effective_levels, rule
 from .parser import UTF8_BOM
 
-# Auto modifier categories the engine is known to evaluate.
-# `location` PROVABLY loads but is never evaluated (the modifier is
-# simply dead, with no error.log signal). `dynasty` ships in vanilla
-# files but evaluation is unconfirmed.
-AUTO_MODIFIER_EVALUATED = {"country", "international_organization"}
-AUTO_MODIFIER_UNCONFIRMED = {"dynasty"}
+# Keys inside an auto modifier block that are structure, not modifiers.
+AUTO_MODIFIER_STRUCTURE_KEYS = {"potential_trigger", "game_data",
+                                "requires_real"}
 
 
 @rule("E001", "Forward reference inside an advances file")
@@ -111,8 +108,8 @@ def in_tree_of_root(ctx: Context) -> list[Finding]:
     return findings
 
 
-@rule("E003", "Auto modifier category the engine never evaluates")
-def auto_modifier_category(ctx: Context) -> list[Finding]:
+@rule("E003", "Auto modifier block with wrong-scope content")
+def auto_modifier_content(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     for sf in ctx.mod.db_files("auto_modifiers"):
         parsed = sf.parsed()
@@ -120,43 +117,35 @@ def auto_modifier_category(ctx: Context) -> list[Finding]:
             if not kv.is_block:
                 continue
             game_data = kv.value.find("game_data")
-            if game_data is None or not game_data.is_block:
-                continue
-            category = game_data.value.scalar("category")
-            if category is None:
-                continue
-            if category in AUTO_MODIFIER_EVALUATED:
-                continue
-            if category == "location":
+            if game_data is not None:
                 findings.append(Finding(
                     rule="E003", severity="error", path=sf.path,
-                    line=kv.line,
+                    line=game_data.line,
                     message=(
-                        f"auto modifier '{kv.key}' has category = location. "
-                        "The engine only evaluates auto modifiers for "
-                        "countries and international organizations: this "
-                        "block loads without any error and is silently "
-                        "never applied. Use the scaled static_modifiers "
-                        "system (for example the inverse_control block) "
-                        "for per-location effects.")))
-            elif category in AUTO_MODIFIER_UNCONFIRMED:
-                findings.append(Finding(
-                    rule="E003", severity="info", path=sf.path,
-                    line=kv.line,
-                    message=(
-                        f"auto modifier '{kv.key}' has category = "
-                        f"{category}. Vanilla ships this category but its "
-                        "evaluation is unconfirmed. Verify in game before "
-                        "relying on it.")))
-            else:
-                findings.append(Finding(
-                    rule="E003", severity="warning", path=sf.path,
-                    line=kv.line,
-                    message=(
-                        f"auto modifier '{kv.key}' has unknown category = "
-                        f"{category}. Only country and "
-                        "international_organization are confirmed to be "
-                        "evaluated.")))
+                        f"auto modifier '{kv.key}' contains a game_data "
+                        "block. That is static-modifier syntax: auto "
+                        "modifiers take their scope from the file, not "
+                        "the block, and the engine rejects it ('Unknown "
+                        "modifier type: game_data', verified 1.3.11). "
+                        "Remove the game_data block.")))
+            for inner in kv.value.key_values():
+                if inner.key in AUTO_MODIFIER_STRUCTURE_KEYS:
+                    continue
+                if inner.key.startswith("local_"):
+                    findings.append(Finding(
+                        rule="E003", severity="warning", path=sf.path,
+                        line=inner.line,
+                        message=(
+                            f"location-scope key '{inner.key}' inside "
+                            f"auto modifier '{kv.key}'. Auto modifiers "
+                            "apply at country or organization scope, and "
+                            "a location-scope pillar died silently this "
+                            "way on 1.3.x. Whether local_ keys apply "
+                            "from country scope is unverified on the "
+                            "current patch: verify in game before "
+                            "relying on this, or use the scaled "
+                            "static_modifiers system for per-location "
+                            "effects.")))
     return findings
 
 
@@ -176,10 +165,41 @@ def static_modifier_names(ctx: Context) -> list[Finding]:
                     message=(
                         f"static modifier block '{kv.key}' does not exist "
                         "in vanilla. The engine applies scaled "
-                        "static-modifier blocks by name, so an invented "
-                        "name in the scaled system is never applied. If "
-                        "this is meant to scale with an engine factor, "
-                        "extend the matching vanilla block instead.")))
+                        "static-modifier blocks by name and confirms this "
+                        "one is dead at load: 'was not used by the script "
+                        "or code but exists in the database, this is a "
+                        "waste' (verified 1.3.11). If a script applies it "
+                        "by name this is intentional; otherwise extend "
+                        "the matching vanilla block via a full-file "
+                        "copy.")))
+    return findings
+
+
+@rule("E007", "Vanilla static block re-declared in an added file",
+      needs_vanilla=True)
+def static_modifier_duplicates(ctx: Context) -> list[Finding]:
+    findings: list[Finding] = []
+    known = ctx.vanilla_static_names()
+    if not known or ctx.vanilla is None:
+        return findings
+    for sf in ctx.mod.db_files("static_modifiers"):
+        if sf.rel.lower() in ctx.vanilla.by_rel:
+            continue  # full-file override: re-declaring there is the point
+        parsed = sf.parsed()
+        for kv in parsed.root.key_values():
+            if kv.is_block and kv.key in known:
+                findings.append(Finding(
+                    rule="E007", severity="error", path=sf.path,
+                    line=kv.line,
+                    message=(
+                        f"'{kv.key}' re-declares a vanilla static "
+                        "modifier block in an added file. The engine "
+                        "drops the whole block as a duplicate "
+                        "('Duplicated key will not be created', verified "
+                        "1.3.11): it does not extend or override "
+                        "anything. To change a vanilla scaled block, "
+                        "copy the entire vanilla file to the same path "
+                        "in your mod and edit it there.")))
     return findings
 
 
@@ -190,11 +210,14 @@ def defines_bom(ctx: Context) -> list[Finding]:
         raw = sf.path.read_bytes()
         if not raw.startswith(UTF8_BOM):
             findings.append(Finding(
-                rule="E005", severity="error", path=sf.path, line=1,
+                rule="E005", severity="warning", path=sf.path, line=1,
                 message=(
-                    "defines file has no UTF-8 BOM. EU5 requires the BOM "
-                    "on defines files: without it the overrides can fail "
-                    "to load. Save the file as UTF-8 with BOM.")))
+                    "defines file has no UTF-8 BOM. The engine logs a "
+                    "lexer warning ('should be in utf8-bom encoding') "
+                    "and loads the file anyway (verified 1.3.11: the "
+                    "overrides do apply). Paradox's own files ship with "
+                    "the BOM, so add it to keep your loads "
+                    "warning-free.")))
     return findings
 
 

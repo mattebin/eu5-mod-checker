@@ -32,9 +32,10 @@ python -m eu5lint path\to\your\mod --vanilla "D:\Games\Europa Universalis V"
 |---|---|---|
 | E001 | An advance references a `requires` or `in_tree_of` key defined later in the same file | References resolve at parse time in file order. A forward reference fails with only a buried log line and the advance loads half broken. |
 | E002 | An `in_tree_of` target that is not a root | The engine only accepts depth-0 roots as tree anchors. Demoting one detaches every advance attached to it. |
-| E003 | An auto modifier with `category = location` | The engine only evaluates auto modifiers for countries and international organizations. A location one loads fine and is never applied. This exact trap killed a shipped feature for days. |
-| E004 | A new block name invented in `static_modifiers` | The scaled static-modifier system applies blocks by name. The engine cannot scale a name it does not know, so the block is dead on arrival. Extend a vanilla block instead. |
-| E005 | A defines file without the UTF-8 BOM | Defines overrides can fail to load without it. |
+| E003 | A `game_data` block or location-scope keys inside auto_modifiers | Auto modifiers take scope from the file, not the block. game_data is static-modifier syntax and gets rejected as an unknown modifier type. A location-scope pillar died silently this way in a shipped mod. |
+| E004 | A new block name invented in `static_modifiers` | The scaled static-modifier system applies blocks by name. The engine confirms it at load: "was not used by the script or code but exists in the database, this is a waste". |
+| E005 | A defines file without the UTF-8 BOM | The engine logs a lexer warning and loads it anyway. Paradox's own files ship with BOM, so keep loads warning-free. |
+| E007 | A vanilla static-modifier block re-declared in an added file | The engine drops the whole block as a duplicated key. It does not extend or override anything. Extending requires a full-file copy at the vanilla path. |
 | E006 | A raw newline inside a quoted localization string | Splits the string and throws `Missing quoted string value`. The fix is the two-character escape `\n`. |
 | W101 | Effective starting-technology level changed against vanilla | A country starts with an advance researched when the chain max of `starting_technology_level` over the advance and all its ancestors fits the country level. Re-parenting an advance silently changes who starts with what, across the whole world. |
 | W102 | Full-file overrides of vanilla files | A same-named file replaces the vanilla file completely. After every game patch it silently reverts whatever vanilla changed there. This rule is your re-diff checklist. |
@@ -48,6 +49,16 @@ The linter caught the edited advance and traced the ripple: four vanilla
 advances in culture-unique trees silently changed their effective starting
 level through the modded ancestry. Nothing in the game would have told
 anyone. That is the class of bug this tool exists for.
+
+## Every rule is verified against the live game
+
+[VERIFICATION.md](VERIFICATION.md) is the evidence file: each rule's
+minimal repro, the engine's own error.log response (with Paradox's source
+references), and the player-visible consequence. The repro mod lives in
+`probes/eu5lint-probe` and is re-run against every game patch before the
+verified version is bumped. The probe process has already falsified and
+corrected one of our own rules (the BOM rule) and discovered one nobody
+was looking for (E007) - that is the standard the rule list is held to.
 
 ## Suppressing a finding
 

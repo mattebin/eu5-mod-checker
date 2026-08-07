@@ -1,0 +1,5 @@
+# eu5lint rule probe: E005 (BOM requirement), file WITHOUT BOM.
+# This file must be saved with NO byte order mark.
+NGame = {
+	HOUR_TICK = 12
+}

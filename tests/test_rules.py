@@ -104,32 +104,44 @@ leaf = { in_tree_of = hub }
     assert "E002" not in run_ids(mod)
 
 
-# E003 auto modifier categories
+# E003 auto modifier content (probe-verified 1.3.11)
 
-def test_e003_fires_on_location_category(mod):
-    write(mod, "in_game/common/auto_modifiers/dead.txt", """
-my_dead_modifier = {
+def test_e003_fires_on_game_data_block(mod):
+    write(mod, "in_game/common/auto_modifiers/bad.txt", """
+my_modifier = {
     game_data = { category = location }
-    local_unrest = -1
+    monthly_prestige = 0.1
 }
 """)
     assert "E003" in run_ids(mod, severity="error")
 
 
-def test_e003_silent_on_country_category(mod):
-    write(mod, "in_game/common/auto_modifiers/alive.txt", """
-my_live_modifier = {
-    game_data = { category = country }
-    monthly_prestige = 0.1
+def test_e003_warns_on_local_key(mod):
+    write(mod, "in_game/common/auto_modifiers/local.txt", """
+my_modifier = {
+    potential_trigger = { always = yes }
+    local_unrest = 5
 }
 """)
+    assert "E003" in run_ids(mod, severity="warning")
     assert "E003" not in run_ids(mod, severity="error")
 
 
+def test_e003_silent_on_country_shape(mod):
+    # The probe-verified working shape: country-scope keys, no game_data.
+    write(mod, "in_game/common/auto_modifiers/alive.txt", """
+my_live_modifier = {
+    potential_trigger = { always = yes }
+    monthly_prestige = 0.1
+}
+""")
+    assert "E003" not in run_ids(mod)
+
+
 def test_e003_suppressible_inline(mod):
-    write(mod, "in_game/common/auto_modifiers/dead.txt", """
-known_dead = { # eu5lint:ignore E003
-    game_data = { category = location }
+    write(mod, "in_game/common/auto_modifiers/bad.txt", """
+known_bad = {
+    game_data = { category = location } # eu5lint:ignore E003
 }
 """)
     assert "E003" not in run_ids(mod)
@@ -144,11 +156,24 @@ my_new_scaled_block = { local_unrest = -1 }
     assert "E004" in run_ids(mod, vanilla)
 
 
-def test_e004_silent_when_extending_vanilla_block(mod, vanilla):
+# E007 re-declared vanilla static blocks (probe-discovered 1.3.11)
+
+def test_e007_fires_on_redeclaration_in_added_file(mod, vanilla):
     write(mod, "main_menu/common/static_modifiers/mine.txt", """
 inverse_control = { local_unrest = -3 }
 """)
-    assert "E004" not in run_ids(mod, vanilla)
+    assert "E007" in run_ids(mod, vanilla, severity="error")
+
+
+def test_e007_and_e004_silent_in_full_file_override(mod, vanilla):
+    # Same path as vanilla: re-declaring there is the override mechanism.
+    write(mod, "main_menu/common/static_modifiers/location.txt", """
+inverse_control = { local_unrest = -3 }
+has_road = { local_monthly_control = 0.0005 }
+""")
+    ids = run_ids(mod, vanilla)
+    assert "E007" not in ids
+    assert "E004" not in ids
 
 
 def test_e004_skipped_without_vanilla(mod):
@@ -162,10 +187,13 @@ my_new_scaled_block = { local_unrest = -1 }
 
 # E005 defines BOM
 
-def test_e005_fires_without_bom(mod):
+def test_e005_warns_without_bom(mod):
+    # Probe-verified 1.3.11: the file loads and applies anyway, so this
+    # is a warning about the lexer complaint, not an error.
     write(mod, "loading_screen/common/defines/zz_my_defines.txt",
           "NGame = { HOUR_TICK = 6 }\n", bom=False)
-    assert "E005" in run_ids(mod)
+    assert "E005" in run_ids(mod, severity="warning")
+    assert "E005" not in run_ids(mod, severity="error")
 
 
 def test_e005_silent_with_bom(mod):

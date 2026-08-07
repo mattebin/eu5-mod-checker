@@ -1,0 +1,10 @@
+{
+	"name": "eu5lint rule probe",
+	"id": "eu5lint_rule_probe",
+	"version": "0.1.0",
+	"supported_game_version": "1.3.*",
+	"short_description": "Test mod for re-verifying eu5lint engine rules after game patches. Not for normal play: it deliberately contains dead blocks and loud probe effects.",
+	"tags": [],
+	"relationships": [],
+	"game_custom_data": {}
+}

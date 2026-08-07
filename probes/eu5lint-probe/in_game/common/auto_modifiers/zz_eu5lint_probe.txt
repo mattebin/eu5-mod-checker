@@ -1,0 +1,16 @@
+﻿# eu5lint rule probe: E003 (auto modifier categories).
+# The two blocks are identical in shape. Only the category differs.
+# Expected: the control appears on every country (+10 monthly prestige,
+# shown with its raw key). The dead block appears NOWHERE, in no
+# location tooltip, with no error.log line.
+lint_probe_e003_dead = {
+	potential_trigger = { always = yes }
+	game_data = { category = location }
+	local_unrest = 5
+}
+
+lint_probe_e003_control = {
+	potential_trigger = { always = yes }
+	game_data = { category = country }
+	monthly_prestige = 10
+}

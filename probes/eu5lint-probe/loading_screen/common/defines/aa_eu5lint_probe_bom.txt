@@ -1,0 +1,7 @@
+﻿# eu5lint rule probe: E005 (BOM requirement), file WITH BOM.
+# Sets 6 hour ticks. The no-BOM file loads later and sets 12.
+# Observed tick size is the verdict: 6 = BOM required, 12 = BOM not
+# required (rule E005 is wrong), 2 = probe broken.
+NGame = {
+	HOUR_TICK = 6
+}
