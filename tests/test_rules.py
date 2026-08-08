@@ -269,6 +269,27 @@ inverse_control = { local_unrest = -1 }
     assert "W102" not in run_ids(mod, vanilla)
 
 
+# Database entry modes (Tinto Talks #85): deliberate edits, never flagged
+
+def test_entry_mode_keys_not_flagged(mod, vanilla):
+    write(mod, "main_menu/common/static_modifiers/zz_inject.txt", """
+INJECT:inverse_control = { local_unrest = -1 }
+REPLACE_OR_CREATE:my_new_block = { local_unrest = -1 }
+""")
+    ids = run_ids(mod, vanilla)
+    assert "E007" not in ids
+    assert "E004" not in ids
+
+
+def test_entry_mode_advances_excluded_from_graph(mod, vanilla):
+    # An INJECT edit of a vanilla advance must not be treated as a full
+    # redefinition by the chain-max analysis.
+    write(mod, "in_game/common/advances/inject.txt", """
+INJECT:grandchild_a = { research_cost = 2.0 }
+""")
+    assert "W101" not in run_ids(mod, vanilla)
+
+
 # file-level suppression
 
 def test_ignore_file_suppresses_everything(mod):

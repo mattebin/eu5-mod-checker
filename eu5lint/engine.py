@@ -10,6 +10,20 @@ from .parser import ParsedFile, parse_script_file
 
 DOMAINS = ("in_game", "loading_screen", "main_menu")
 
+# Database Entry Modes (Tinto Talks #85): the official mechanism for
+# editing vanilla database entries from a mod. Keys carrying these
+# prefixes are deliberate edits, not accidental re-declarations, so the
+# name-based rules must not flag them. Their semantics are not modeled
+# yet (INJECT is a partial edit), so prefixed advances are excluded from
+# graph analysis instead of being guessed at.
+ENTRY_MODE_PREFIXES = (
+    "INJECT:", "REPLACE:", "TRY_INJECT:", "TRY_REPLACE:",
+    "REPLACE_OR_CREATE:", "INJECT_OR_CREATE:")
+
+
+def has_entry_mode(key: str) -> bool:
+    return key.startswith(ENTRY_MODE_PREFIXES)
+
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 
 
@@ -120,6 +134,8 @@ def parse_advances(tree: Tree) -> dict[str, Advance]:
         for kv in parsed.root.key_values():
             if not kv.is_block:
                 continue
+            if has_entry_mode(kv.key):
+                continue  # deliberate partial edit, semantics not modeled
             requires: list[tuple[str, int]] = []
             in_tree_of: list[tuple[str, int]] = []
             starting = 0

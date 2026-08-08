@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import difflib
 
-from .engine import Context, Finding, effective_levels, rule
+from .engine import Context, Finding, effective_levels, has_entry_mode, rule
 from .parser import UTF8_BOM
 
 # Keys inside an auto modifier block that are structure, not modifiers.
@@ -158,7 +158,8 @@ def static_modifier_names(ctx: Context) -> list[Finding]:
     for sf in ctx.mod.db_files("static_modifiers"):
         parsed = sf.parsed()
         for kv in parsed.root.key_values():
-            if kv.is_block and kv.key not in known:
+            if kv.is_block and not has_entry_mode(kv.key) \
+                    and kv.key not in known:
                 findings.append(Finding(
                     rule="E004", severity="warning", path=sf.path,
                     line=kv.line,
@@ -169,9 +170,9 @@ def static_modifier_names(ctx: Context) -> list[Finding]:
                         "one is dead at load: 'was not used by the script "
                         "or code but exists in the database, this is a "
                         "waste' (verified 1.3.11). If a script applies it "
-                        "by name this is intentional; otherwise extend "
-                        "the matching vanilla block via a full-file "
-                        "copy.")))
+                        "by name this is intentional; otherwise edit the "
+                        "vanilla block instead (INJECT: entry mode, or a "
+                        "full-file copy).")))
     return findings
 
 
@@ -187,7 +188,8 @@ def static_modifier_duplicates(ctx: Context) -> list[Finding]:
             continue  # full-file override: re-declaring there is the point
         parsed = sf.parsed()
         for kv in parsed.root.key_values():
-            if kv.is_block and kv.key in known:
+            if kv.is_block and not has_entry_mode(kv.key) \
+                    and kv.key in known:
                 findings.append(Finding(
                     rule="E007", severity="error", path=sf.path,
                     line=kv.line,
@@ -197,9 +199,10 @@ def static_modifier_duplicates(ctx: Context) -> list[Finding]:
                         "drops the whole block as a duplicate "
                         "('Duplicated key will not be created', verified "
                         "1.3.11): it does not extend or override "
-                        "anything. To change a vanilla scaled block, "
-                        "copy the entire vanilla file to the same path "
-                        "in your mod and edit it there.")))
+                        "anything. To edit a vanilla scaled block, use "
+                        "the documented database entry modes "
+                        "(INJECT:name) or copy the entire vanilla file "
+                        "to the same path and edit it there.")))
     return findings
 
 
