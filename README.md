@@ -129,3 +129,7 @@ get added once the behavior is confirmed against the live game.
 ## License
 
 MIT
+
+---
+
+Created by [Scoopiepoop](https://steamcommunity.com/profiles/76561198092461973/myworkshopfiles/?appid=3450310), maker of the Responsive Universalis mod family for EU5.
