@@ -37,7 +37,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         description=(
             "Checks an EU5 mod for silent engine traps: mistakes the game "
             "loads without complaining about and simply ignores."))
-    parser.add_argument("mod", help="path to the mod folder")
+    parser.add_argument("mod", nargs="?",
+                        help="path to the mod folder")
     parser.add_argument(
         "--vanilla",
         help=(
@@ -87,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{rule_id}  {description}{tag}")
         return 0
 
+    if not args.mod:
+        parser.error("the mod path is required (or use --list-rules)")
     mod_path = Path(args.mod)
     if not mod_path.is_dir():
         print(f"error: mod path not found: {mod_path}", file=sys.stderr)
