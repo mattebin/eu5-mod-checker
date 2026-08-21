@@ -1,0 +1,18 @@
+﻿NGame = {
+	HOUR_TICK = 12
+}
+
+# Added by EU5 Mod Checker: tick compensation for HOUR_TICK 12 (vanilla values scaled by the tick ratio).
+NUnit = {
+	ARMY_MOVEMENT_SPEED = 0.78
+	NAVY_MOVEMENT_SPEED = 3
+}
+
+# Added by EU5 Mod Checker: tick compensation for HOUR_TICK 12 (vanilla values scaled by the tick ratio).
+NCombat = {
+	HOURS_PER_PHASE = 1
+	COMBAT_HOURLY_MORALE_TICK = 0.06
+	COMBAT_DAMAGE_MULT = 0.06
+	MINIMUM_COMBAT_DURATION = 4
+	MINIMUM_NAVAL_COMBAT_DURATION = 12
+}

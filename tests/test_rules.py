@@ -414,6 +414,40 @@ NUnit = {
     assert "COMBAT_HOURLY_MORALE_TICK = 0.03" in text
 
 
+def test_revert_restores_everything(mod):
+    from eu5lint.engine import run as _run
+    from eu5lint.fixes import FixSession, apply_fixes
+    rel = "loading_screen/common/defines/zz.txt"
+    original = "NGame = {\n\tHOUR_TICK = 6\n}\n"
+    write(mod, rel, original)  # no BOM + naive tick
+    before = (mod / rel).read_bytes()
+    session = FixSession()
+    findings, _ = _run(mod, None)
+    apply_fixes(findings, mod, session)
+    assert (mod / rel).read_bytes() != before
+    assert session.has_changes
+    session.revert()
+    assert (mod / rel).read_bytes() == before
+    assert not session.has_changes
+    ids = run_ids(mod)
+    assert "W104" in ids and "E005" in ids
+
+
+def test_revert_undoes_rename(mod, vanilla):
+    from eu5lint.engine import run as _run
+    from eu5lint.fixes import FixSession, apply_fixes
+    write(vanilla, "game/in_game/common/topography/00_default.txt",
+          "flatlands = { }\n", bom=True)
+    write(mod, "in_game/common/topography/00_default.txt",
+          "flatlands = { }\n", bom=True)
+    session = FixSession()
+    findings, _ = _run(mod, vanilla.parent / "eu5")
+    apply_fixes(findings, mod, session)
+    assert not (mod / "in_game/common/topography/00_default.txt").exists()
+    session.revert()
+    assert (mod / "in_game/common/topography/00_default.txt").exists()
+
+
 def test_fix_w102_renames_identical_copy(mod, vanilla):
     write(vanilla, "game/in_game/common/topography/00_default.txt",
           "flatlands = { }\n", bom=True)

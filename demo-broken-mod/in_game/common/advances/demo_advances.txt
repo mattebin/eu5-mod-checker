@@ -1,0 +1,9 @@
+﻿demo_early = {
+	age = age_1_traditions
+	requires = demo_late
+}
+
+demo_late = {
+	age = age_1_traditions
+	in_tree_of = demo_early
+}

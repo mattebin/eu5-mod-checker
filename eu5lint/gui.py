@@ -19,6 +19,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .cli import find_vanilla
 from .engine import run
+from .fixes import FixSession, apply_fixes
 
 MOD_DIR = Path.home() / "Documents/Paradox Interactive/Europa Universalis V/mod"
 
@@ -114,6 +115,9 @@ class App(tk.Tk):
         self.vanilla = find_vanilla(None)
         self.findings = []
         self.mod_path: Path | None = None
+        self.fix_session = FixSession()
+        self.history_lines: list[str] = []
+        self.history_box: tk.Text | None = None
 
         top = ttk.Frame(self, padding=10)
         top.pack(fill="x")
@@ -168,6 +172,11 @@ class App(tk.Tk):
         self.fix_btn = ttk.Button(bottom, text="Fix automatically",
                                   command=self.fix, state="disabled")
         self.fix_btn.pack(side="right", padx=8)
+        self.revert_btn = ttk.Button(bottom, text="Revert fixes",
+                                     command=self.revert, state="disabled")
+        self.revert_btn.pack(side="right")
+        ttk.Button(bottom, text="History",
+                   command=self.show_history).pack(side="right", padx=8)
 
     # ---------------------------------------------------------- actions
     def browse(self):
@@ -224,6 +233,9 @@ class App(tk.Tk):
                 f"{counts['error']} problems, {counts['warning']} warnings, "
                 f"{counts['info']} notes. Click a line for what to do."))
         self.save_btn.configure(state="normal" if findings else "disabled")
+        counts_line = (f"checked {self.mod_path}: {counts['error']} problems, "
+                       f"{counts['warning']} warnings, {counts['info']} notes")
+        self.log(counts_line)
         n_fix = sum(1 for f in findings if f.fixable)
         self.fix_btn.configure(
             state="normal" if n_fix else "disabled",
@@ -242,6 +254,50 @@ class App(tk.Tk):
         self.detail.insert("1.0", text)
         self.detail.configure(state="disabled")
 
+    def log(self, text: str):
+        stamp = datetime.now().strftime("%H:%M:%S")
+        for line in text.splitlines():
+            self.history_lines.append(f"[{stamp}] {line}")
+        if self.history_box is not None and self.history_box.winfo_exists():
+            self._refresh_history()
+
+    def _refresh_history(self):
+        box = self.history_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        box.insert("1.0", "\n".join(self.history_lines) or
+                   "Nothing has happened yet.")
+        box.configure(state="disabled")
+        box.see("end")
+
+    def show_history(self):
+        if self.history_box is not None and self.history_box.winfo_exists():
+            self.history_box.master.lift()
+            return
+        win = tk.Toplevel(self)
+        win.title("History")
+        win.geometry("640x420")
+        ico = icon_path()
+        if ico:
+            try:
+                win.iconbitmap(str(ico))
+            except tk.TclError:
+                pass
+        box = tk.Text(win, wrap="word", padx=10, pady=8)
+        box.pack(fill="both", expand=True)
+        bar = ttk.Frame(win, padding=8)
+        bar.pack(fill="x")
+
+        def copy_all():
+            self.clipboard_clear()
+            self.clipboard_append("\n".join(self.history_lines))
+
+        ttk.Button(bar, text="Copy all", command=copy_all).pack(side="right")
+        ttk.Label(bar, text="Text is selectable, Ctrl+C copies."
+                  ).pack(side="left")
+        self.history_box = box
+        self._refresh_history()
+
     def fix(self):
         fixable = [f for f in self.findings if f.fixable]
         if not fixable:
@@ -251,14 +307,34 @@ class App(tk.Tk):
                 "EU5 Mod Checker",
                 f"Apply {len(fixable)} automatic fix(es)?\n\n{plan}\n\n"
                 "Only these things change, nothing else is touched. "
-                "Removed files are renamed, not deleted."):
+                "Removed files are renamed, not deleted. Everything is "
+                "backed up first and Revert fixes undoes it."):
             return
-        from .fixes import apply_fixes
-        done = apply_fixes(self.findings, self.mod_path)
-        messagebox.showinfo("EU5 Mod Checker",
-                            "Done:\n" + "\n".join(done) +
-                            "\n\nRe-checking now.")
+        done = apply_fixes(self.findings, self.mod_path, self.fix_session)
+        self.log(f"Fixed {self.mod_path}:")
+        for line in done:
+            self.log("  " + line)
+        self.revert_btn.configure(
+            state="normal" if self.fix_session.has_changes else "disabled")
+        self.show_history()
         self.check()
+
+    def revert(self):
+        if not self.fix_session.has_changes:
+            return
+        if not messagebox.askyesno(
+                "EU5 Mod Checker",
+                "Undo every fix applied since this window was opened? "
+                "Files go back to exactly how they were before the fixes."):
+            return
+        done = self.fix_session.revert()
+        self.log("Reverted:")
+        for line in done:
+            self.log("  " + line)
+        self.revert_btn.configure(state="disabled")
+        self.show_history()
+        if self.mod_path:
+            self.check()
 
     def save(self):
         if not self.findings:

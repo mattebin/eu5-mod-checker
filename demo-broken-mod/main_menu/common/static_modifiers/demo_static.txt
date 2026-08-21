@@ -1,0 +1,3 @@
+﻿totally_made_up_modifier = {
+	research_speed_modifier = 0.5
+}
