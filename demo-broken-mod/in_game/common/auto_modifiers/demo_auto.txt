@@ -1,6 +1,0 @@
-﻿demo_auto = {
-	game_data = {
-		category = location
-	}
-	local_unrest = -1
-}
