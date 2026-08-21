@@ -246,27 +246,18 @@ class App(tk.Tk):
         fixable = [f for f in self.findings if f.fixable]
         if not fixable:
             return
-        plan = "
-".join(sorted({f"- {f.fixable}" for f in fixable}))
+        plan = "\n".join(sorted({f"- {f.fixable}" for f in fixable}))
         if not messagebox.askyesno(
                 "EU5 Mod Checker",
-                f"Apply {len(fixable)} automatic fix(es)?
-
-{plan}
-
-"
+                f"Apply {len(fixable)} automatic fix(es)?\n\n{plan}\n\n"
                 "Only these things change, nothing else is touched. "
                 "Removed files are renamed, not deleted."):
             return
         from .fixes import apply_fixes
         done = apply_fixes(self.findings, self.mod_path)
         messagebox.showinfo("EU5 Mod Checker",
-                            "Done:
-" + "
-".join(done) +
-                            "
-
-Re-checking now.")
+                            "Done:\n" + "\n".join(done) +
+                            "\n\nRe-checking now.")
         self.check()
 
     def save(self):
