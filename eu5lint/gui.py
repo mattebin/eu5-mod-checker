@@ -19,7 +19,10 @@ from tkinter import filedialog, messagebox, ttk
 
 from .cli import find_vanilla
 from .engine import run
-from .fixes import FixSession, apply_fixes
+from .fixes import DATA_DIR, FixSession, apply_fixes
+
+HISTORY_FILE = DATA_DIR / "history.log"
+HISTORY_KEEP = 2000  # lines loaded back at launch
 
 MOD_DIR = Path.home() / "Documents/Paradox Interactive/Europa Universalis V/mod"
 
@@ -118,6 +121,14 @@ class App(tk.Tk):
         self.fix_session = FixSession()
         self.history_lines: list[str] = []
         self.history_box: tk.Text | None = None
+        try:
+            if HISTORY_FILE.is_file():
+                self.history_lines = HISTORY_FILE.read_text(
+                    encoding="utf-8").splitlines()[-HISTORY_KEEP:]
+        except OSError:
+            pass
+        self.log(f"--- EU5 Mod Checker started "
+                 f"{datetime.now():%Y-%m-%d %H:%M} ---")
 
         top = ttk.Frame(self, padding=10)
         top.pack(fill="x")
@@ -256,8 +267,14 @@ class App(tk.Tk):
 
     def log(self, text: str):
         stamp = datetime.now().strftime("%H:%M:%S")
-        for line in text.splitlines():
-            self.history_lines.append(f"[{stamp}] {line}")
+        new = [f"[{stamp}] {line}" for line in text.splitlines()]
+        self.history_lines.extend(new)
+        try:
+            HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with HISTORY_FILE.open("a", encoding="utf-8") as fh:
+                fh.write("\n".join(new) + "\n")
+        except OSError:
+            pass
         if self.history_box is not None and self.history_box.winfo_exists():
             self._refresh_history()
 

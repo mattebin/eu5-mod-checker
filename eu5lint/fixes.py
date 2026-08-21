@@ -24,8 +24,9 @@ from pathlib import Path
 from .engine import Context, Finding
 from .parser import UTF8_BOM
 
-BACKUP_ROOT = (Path(os.environ.get("LOCALAPPDATA", Path.home()))
-               / "EU5ModChecker" / "backups")
+DATA_DIR = (Path(os.environ.get("LOCALAPPDATA", Path.home()))
+            / "EU5ModChecker")
+BACKUP_ROOT = DATA_DIR / "backups"
 
 
 class FixSession:
