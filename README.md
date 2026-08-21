@@ -1,39 +1,33 @@
 # EU5 Mod Checker
 
-A checker for Europa Universalis V mods. It catches the mistakes the game
-loads **without any error** and simply ignores.
+I make EU5 mods and kept losing days to mistakes the game loads without
+any error. The files parse, error.log stays quiet, and the mod just does
+not do what you wrote. So I built a checker for exactly those mistakes.
+Every rule in it comes from a real bug in a live Workshop mod, then was
+verified against the actual game.
 
-EU5's engine accepts a lot of broken input silently. The files parse,
-error.log stays quiet, and your mod just does not do what you wrote. Every
-rule in this tool is one of those traps, found the hard way while
-maintaining live Workshop mods on EU5 1.3.x, then verified by bisecting
-against the real game. None of them are documented anywhere else.
+## How to use it
 
-## EU5 Mod Checker (no install)
+1. Download **EU5 Mod Checker.exe** from the
+   [latest release](https://github.com/mattebin/eu5-mod-checker/releases/latest).
+   One file, no install.
+2. Run it and pick your mod **folder**. Not a file, the folder - the one
+   that has `in_game`, `loading_screen` or `main_menu` inside it. Examples:
 
-Not a Python person? Download **EU5 Mod Checker.exe** from the
-[latest release](https://github.com/mattebin/eu5-mod-checker/releases/latest),
-double click it, pick your mod folder and press Check mod. Same rules,
-plain language explanations, and a Fix automatically button for the
-problems that can be repaired safely (everything is backed up first and
-one click reverts it). No installer, single portable file.
+   ```
+   C:\Users\YOU\Documents\Paradox Interactive\Europa Universalis V\mod\my-mod
+   C:\Program Files (x86)\Steam\steamapps\workshop\content\3450310\123456789
+   ```
 
-## Quickstart
+   Mods in your Paradox mod folder show up in the dropdown on their own.
+3. Press **Check mod**. Click any line to see what is wrong and what to
+   do about it, in plain language.
 
-Python 3.10+, no dependencies.
+The **Fix automatically** button repairs the problems that can be fixed
+safely. Everything is backed up first and one click reverts it all.
 
-```
-git clone https://github.com/mattebin/eu5-mod-checker
-cd eu5-mod-checker
-python -m eu5lint path\to\your\mod
-```
-
-The vanilla-aware rules need your EU5 install. The tool auto-detects
-common Steam locations. If yours is somewhere else:
-
-```
-python -m eu5lint path\to\your\mod --vanilla "D:\Games\Europa Universalis V"
-```
+The first check reads your whole game folder once, so it takes the
+longest. After that checks are quick.
 
 ## What it catches
 
@@ -44,87 +38,66 @@ python -m eu5lint path\to\your\mod --vanilla "D:\Games\Europa Universalis V"
 | E003 | A `game_data` block or location-scope keys inside auto_modifiers | Auto modifiers take scope from the file, not the block. game_data is static-modifier syntax and gets rejected as an unknown modifier type. A location-scope pillar died silently this way in a shipped mod. |
 | E004 | A new block name invented in `static_modifiers` | The scaled static-modifier system applies blocks by name. The engine confirms it at load: "was not used by the script or code but exists in the database, this is a waste". |
 | E005 | A defines file without the UTF-8 BOM | The engine logs a lexer warning and loads it anyway. Paradox's own files ship with BOM, so keep loads warning-free. |
-| E007 | A vanilla static-modifier block re-declared in an added file | The engine drops the whole block as a duplicated key. It does not extend or override anything. Extending requires a full-file copy at the vanilla path. |
 | E006 | A raw newline inside a quoted localization string | Splits the string and throws `Missing quoted string value`. The fix is the two-character escape `\n`. |
+| E007 | A vanilla static-modifier block re-declared in an added file | The engine drops the whole block as a duplicated key. It does not extend or override anything. Extending requires a full-file copy at the vanilla path. |
 | W101 | Effective starting-technology level changed against vanilla | A country starts with an advance researched when the chain max of `starting_technology_level` over the advance and all its ancestors fits the country level. Re-parenting an advance silently changes who starts with what, across the whole world. |
 | W102 | Full-file overrides of vanilla files | A same-named file replaces the vanilla file completely. After every game patch it silently reverts whatever vanilla changed there. This rule is your re-diff checklist. |
-| P001 | Anything the linter itself could not parse | So a broken region never silently hides findings behind it. |
 | W103 | Full-file overrides of vanilla `.gui` files | Same patch-rot class as W102: gui files are whole-file-wins, so each override silently reverts vanilla's future changes to that window. |
-| W104 | `HOUR_TICK` changed without drift compensation | Movement accrues per tick and combat advances a fixed 2 hours per tick (both measured on 1.3.11), so an unrescaled tick change slows them in calendar time; ticks over 24h also undersample every daily system. The finding prints the correct compensation values. |
+| W104 | `HOUR_TICK` changed without drift compensation | Movement accrues per tick and combat advances a fixed 2 hours per tick (both measured on 1.3.11), so an unrescaled tick change slows them in calendar time. Ticks over 24h also undersample every daily system. The finding prints the correct compensation values for your tick. |
+| P001 | Anything the checker itself could not parse | So a broken region never silently hides findings behind it. |
 
 ## Automatic fixes
 
-`--fix` (CLI) or the "Fix automatically" button (EU5 Mod Checker) repairs
-the findings that can be fixed mechanically with confidence: adds missing
-BOMs (E005), joins split localization strings with `
-` (E006), renames
-do-nothing identical override copies out of the load path (W102/W103,
-reversible - renamed, never deleted), and writes the correct tick
-compensation values into the defines (W104, ticks up to 24h). Everything
-needing design intent stays a finding.
+`--fix` on the command line, or the Fix automatically button in the app.
+It repairs what can be repaired with confidence: missing BOMs, split
+localization strings, do-nothing identical override copies (renamed out
+of the way, never deleted), and tick compensation values. Anything that
+needs a design decision stays a finding.
+
+## Command line
+
+Python 3.10+, no dependencies.
+
+```
+git clone https://github.com/mattebin/eu5-mod-checker
+cd eu5-mod-checker
+python -m eu5lint path\to\your\mod
+```
+
+The vanilla-aware rules find your EU5 install on their own in common
+Steam locations. Somewhere else: add
+`--vanilla "D:\Games\Europa Universalis V"`. For CI: `--format json`,
+exit code 1 on errors, `--strict` to fail on warnings too.
 
 ## The one-digit demo
 
-We took a published tech tree mod (3156 advances, all green in game and
+I took a published tech tree mod (3156 advances, all green in game and
 in error.log) and changed a single `starting_technology_level = 3` to `1`.
-The linter caught the edited advance and traced the ripple: four vanilla
+The checker caught the edited advance and traced the ripple: four vanilla
 advances in culture-unique trees silently changed their effective starting
 level through the modded ancestry. Nothing in the game would have told
 anyone. That is the class of bug this tool exists for.
 
-## Every rule is verified against the live game
+## How the rules stay honest
 
-[VERIFICATION.md](VERIFICATION.md) is the evidence file: each rule's
-minimal repro, the engine's own error.log response (with Paradox's source
-references), and the player-visible consequence. The repro mod lives in
-`probes/eu5lint-probe` and is re-run against every game patch before the
-verified version is bumped. The probe process has already falsified and
-corrected one of our own rules (the BOM rule) and discovered one nobody
-was looking for (E007) - that is the standard the rule list is held to.
+[VERIFICATION.md](VERIFICATION.md) has each rule's minimal repro and the
+engine's actual response. The repro mod in `probes/eu5lint-probe` is
+re-run against every game patch before the verified version is bumped.
+The tool states which game version its rules were verified on and warns
+you when your game is newer.
+
+This is not a schema validator. CWTools checks your syntax while you
+type and is worth using alongside this. This tool only knows about
+mistakes that pass every syntax check and still do nothing.
+
+Found another silent trap? Open an issue with a small repro. Rules only
+get added once the behavior is confirmed against the live game.
 
 ## Suppressing a finding
 
-Same line, in a comment:
-
-```
-my_block = { # eu5lint:ignore E003
-```
-
-`# eu5lint:ignore` with no rule ids suppresses every rule on that line.
-`# eu5lint:ignore-file` in the first three lines skips the whole file.
-
-## For CI
-
-`--format json` prints machine-readable output. Exit code is 1 when there
-are errors, 0 otherwise. Add `--strict` to fail on warnings too.
-
-## Game updates
-
-Rules split into three tiers for version resilience:
-
-1. **Vanilla-aware rules (E004, W101, W102) update themselves.** They read
-   your installed game at run time instead of hardcoding any vanilla
-   content, so a game patch automatically refreshes what they check
-   against.
-2. **Parse-behavior rules (E001, E005, E006) encode engine fundamentals**
-   that are stable across patches.
-3. **Engine-behavior rules could in principle be fixed by Paradox** (the
-   best outcome for everyone). Because of that, the tool states the game
-   version its rules were last verified on, auto-detects your version,
-   and warns you to treat findings as provisional when your game is
-   newer. Every rule gets re-verified against each game patch before the
-   verified version is bumped.
-
-## What this is not
-
-It is not a schema validator. CWTools and similar editor extensions check
-syntax and types and are worth using alongside this. eu5-mod-lint only
-knows about behaviors that pass every syntax check and still do nothing.
-The rule list is precision-first: a small number of checks that are
-actually proven, instead of a large number of guesses.
-
-Found another silent trap? Open an issue with a minimal repro. Rules only
-get added once the behavior is confirmed against the live game.
+Same line, in a comment: `# eu5lint:ignore E003` (no rule id = all rules
+on that line). `# eu5lint:ignore-file` in the first three lines skips
+the whole file.
 
 ## License
 
@@ -132,4 +105,5 @@ MIT
 
 ---
 
-Created by [Scoopiepoop](https://steamcommunity.com/profiles/76561198092461973/myworkshopfiles/?appid=3450310), maker of the Responsive Universalis mod family for EU5.
+Made by [Scoopiepoop](https://steamcommunity.com/profiles/76561198092461973/myworkshopfiles/?appid=3450310),
+the Responsive Universalis mods for EU5.
