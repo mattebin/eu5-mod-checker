@@ -40,6 +40,8 @@ python -m eu5lint path\to\your\mod --vanilla "D:\Games\Europa Universalis V"
 | W101 | Effective starting-technology level changed against vanilla | A country starts with an advance researched when the chain max of `starting_technology_level` over the advance and all its ancestors fits the country level. Re-parenting an advance silently changes who starts with what, across the whole world. |
 | W102 | Full-file overrides of vanilla files | A same-named file replaces the vanilla file completely. After every game patch it silently reverts whatever vanilla changed there. This rule is your re-diff checklist. |
 | P001 | Anything the linter itself could not parse | So a broken region never silently hides findings behind it. |
+| W103 | Full-file overrides of vanilla `.gui` files | Same patch-rot class as W102: gui files are whole-file-wins, so each override silently reverts vanilla's future changes to that window. |
+| W104 | `HOUR_TICK` changed without drift compensation | Movement accrues per tick and combat advances a fixed 2 hours per tick (both measured on 1.3.11), so an unrescaled tick change slows them in calendar time; ticks over 24h also undersample every daily system. The finding prints the correct compensation values. |
 
 ## The one-digit demo
 

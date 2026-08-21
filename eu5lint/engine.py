@@ -89,6 +89,7 @@ class Tree:
     scripts: list[ScriptFile] = field(default_factory=list)
     loc_files: list[LocFile] = field(default_factory=list)
     by_rel: dict[str, ScriptFile] = field(default_factory=dict)
+    gui_files: dict[str, Path] = field(default_factory=dict)  # rel -> path
 
     @classmethod
     def scan(cls, root: Path) -> "Tree":
@@ -108,6 +109,8 @@ class Tree:
             elif suffix == ".yml" and is_loc_path(rel_parts):
                 tree.loc_files.append(
                     LocFile(path=path, rel="/".join(rel_parts)))
+            elif suffix == ".gui":
+                tree.gui_files["/".join(rel_parts).lower()] = path
         return tree
 
     def db_files(self, db: str) -> list[ScriptFile]:

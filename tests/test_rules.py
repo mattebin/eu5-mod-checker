@@ -298,3 +298,71 @@ early = { requires = late }
 late = { }
 """)
     assert run_ids(mod) == []
+
+
+# W103 gui full-file override
+
+def test_w103_fires_on_gui_override(mod, vanilla):
+    write(vanilla, "game/in_game/gui/some_window.gui", "widget = { }\n")
+    write(mod, "in_game/gui/some_window.gui", "widget = { changed }\n")
+    assert "W103" in run_ids(mod, vanilla)
+
+
+def test_w103_silent_on_new_gui_file(mod, vanilla):
+    write(vanilla, "game/in_game/gui/some_window.gui", "widget = { }\n")
+    write(mod, "in_game/gui/my_own_window.gui", "widget = { }\n")
+    assert "W103" not in run_ids(mod, vanilla)
+
+
+# W104 tick drift
+
+def test_w104_fires_on_naive_tick_mod(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 6
+}
+""", bom=True)
+    from eu5lint.engine import run as _run
+    findings, _ = _run(mod, None)
+    msgs = [f.message for f in findings if f.rule == "W104"]
+    assert any("movement" in m for m in msgs)
+    assert any("combat" in m for m in msgs)
+
+
+def test_w104_silent_on_compensated_mod(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 6
+}
+NUnit = {
+	ARMY_MOVEMENT_SPEED = 0.39
+	NAVY_MOVEMENT_SPEED = 1.5
+}
+NCombat = {
+	HOURS_PER_PHASE = 2
+	COMBAT_HOURLY_MORALE_TICK = 0.03
+	COMBAT_DAMAGE_MULT = 0.03
+	MINIMUM_COMBAT_DURATION = 8
+	MINIMUM_NAVAL_COMBAT_DURATION = 24
+}
+""", bom=True)
+    assert "W104" not in run_ids(mod)
+
+
+def test_w104_undersampling_above_daily(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 47
+}
+""", bom=True)
+    from eu5lint.engine import run as _run
+    findings, _ = _run(mod, None)
+    assert any(f.rule == "W104" and "longer than a day" in f.message
+               for f in findings)
+
+
+def test_w104_silent_on_vanilla_tick(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 2
+}
+""", bom=True)
+    assert "W104" not in run_ids(mod)
+
+

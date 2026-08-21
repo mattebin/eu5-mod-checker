@@ -351,3 +351,154 @@ def override_drift(ctx: Context) -> list[Finding]:
                 "copy silently reverts whatever vanilla changed here. "
                 "Re-diff it against vanilla on each patch.")))
     return findings
+
+
+@rule("W103", "Full-file override of a vanilla gui file", needs_vanilla=True)
+def gui_override_drift(ctx: Context) -> list[Finding]:
+    """Same patch-rot class as W102, for .gui files. Gui files are
+    whole-file-wins (verified live July 2026: a mod replacing base
+    templates restyles other mods' windows), so every same-named gui file
+    silently reverts vanilla's future changes to it after each patch."""
+    findings: list[Finding] = []
+    assert ctx.vanilla is not None
+    for rel, path in sorted(ctx.mod.gui_files.items()):
+        vanilla_path = ctx.vanilla.gui_files.get(rel)
+        if vanilla_path is None:
+            continue
+        try:
+            mod_lines = path.read_bytes().decode(
+                "utf-8-sig", errors="replace").splitlines()
+            van_lines = vanilla_path.read_bytes().decode(
+                "utf-8-sig", errors="replace").splitlines()
+        except OSError:
+            continue
+        diff = sum(1 for line in difflib.unified_diff(
+            van_lines, mod_lines, lineterm="", n=0)
+            if line.startswith(("+", "-"))
+            and not line.startswith(("+++", "---")))
+        same = " (identical copy, does nothing today)" if diff == 0 else             f" ({diff} changed lines)"
+        findings.append(Finding(
+            rule="W103", severity="info", path=path, line=1,
+            message=(
+                f"full-file override of vanilla {rel}{same}. Gui files "
+                "replace the vanilla file completely, so after every game "
+                "patch this copy silently reverts whatever vanilla changed "
+                "here. Re-diff it against vanilla on each patch.")))
+    return findings
+
+
+# 1.3.11 anchors for the tick-drift model. All engine behavior below was
+# measured live (timed marches 2026-08-16, dice cadence 2026-08-19) or
+# cross-validated against Faster Universalis (daily undersampling,
+# 2026-08-21); see the Responsive Universalis engine notes.
+TICK_VANILLA = {
+    "HOUR_TICK": 2.0,
+    "ARMY_MOVEMENT_SPEED": 0.13,
+    "NAVY_MOVEMENT_SPEED": 0.5,
+    "COMBAT_HOURLY_MORALE_TICK": 0.01,
+    "COMBAT_DAMAGE_MULT": 0.01,
+    "MINIMUM_COMBAT_DURATION": 24.0,
+    "MINIMUM_NAVAL_COMBAT_DURATION": 72.0,
+    "HOURS_PER_PHASE": 5.0,
+}
+
+
+def _mod_defines(ctx: Context) -> dict[str, tuple[float, "object", int]]:
+    """name -> (value, file, line) across the mod's defines files,
+    last file in load order wins per key."""
+    out: dict[str, tuple[float, object, int]] = {}
+    for sf in sorted(ctx.mod.db_files("defines"), key=lambda s: s.rel):
+        try:
+            parsed = sf.parsed()
+        except OSError:
+            continue
+        for block in parsed.root.key_values():
+            if not block.is_block:
+                continue
+            for kv in block.value.key_values():
+                if kv.is_block:
+                    continue
+                try:
+                    out[kv.key] = (float(kv.value), sf, kv.line)
+                except (TypeError, ValueError):
+                    continue
+    return out
+
+
+@rule("W104", "Tick change without drift compensation")
+def tick_drift(ctx: Context) -> list[Finding]:
+    """The simulation has per-tick systems: they run once per tick no
+    matter how many game hours the tick spans. A mod that raises
+    HOUR_TICK without rescaling them slows those systems down in
+    calendar terms. Movement accrues per tick (timed-march proven) and
+    combat advances a fixed 2 hours per tick (dice-cadence proven), and
+    ticks longer than 24 hours additionally undersample every daily
+    system. This rule does the arithmetic and prints the correct values."""
+    defines = _mod_defines(ctx)
+    ht = defines.get("HOUR_TICK")
+    if ht is None or ht[0] == TICK_VANILLA["HOUR_TICK"]:
+        return []
+    ratio = ht[0] / TICK_VANILLA["HOUR_TICK"]
+    sf, line = ht[1], ht[2]
+    findings: list[Finding] = []
+
+    def value_of(key):
+        got = defines.get(key)
+        return got[0] if got else None
+
+    def off(key, expected, tol=0.05):
+        got = value_of(key)
+        if got is None:
+            return True
+        return abs(got - expected) > abs(expected) * tol
+
+    army = TICK_VANILLA["ARMY_MOVEMENT_SPEED"] * ratio
+    navy = TICK_VANILLA["NAVY_MOVEMENT_SPEED"] * ratio
+    if off("ARMY_MOVEMENT_SPEED", army) or off("NAVY_MOVEMENT_SPEED", navy):
+        findings.append(Finding(
+            rule="W104", severity="warning", path=sf.path, line=line,
+            message=(
+                f"HOUR_TICK {ht[0]:g} without movement compensation: "
+                "movement accrues per tick, so armies and navies will "
+                f"move ~{ratio:g}x slower per calendar day than vanilla "
+                "(timed-march proven on 1.3.11). Expected "
+                f"ARMY_MOVEMENT_SPEED = {army:g} and NAVY_MOVEMENT_SPEED "
+                f"= {navy:g} (vanilla 0.13 / 0.5 times the tick ratio).")))
+
+    morale = TICK_VANILLA["COMBAT_HOURLY_MORALE_TICK"] * ratio
+    dmg = TICK_VANILLA["COMBAT_DAMAGE_MULT"] * ratio
+    min_land = TICK_VANILLA["MINIMUM_COMBAT_DURATION"] / ratio
+    min_naval = TICK_VANILLA["MINIMUM_NAVAL_COMBAT_DURATION"] / ratio
+    hpp = TICK_VANILLA["HOURS_PER_PHASE"] / ratio
+    combat_off = (off("COMBAT_HOURLY_MORALE_TICK", morale)
+                  or off("COMBAT_DAMAGE_MULT", dmg)
+                  or off("MINIMUM_COMBAT_DURATION", min_land, tol=0.5)
+                  or off("MINIMUM_NAVAL_COMBAT_DURATION", min_naval, tol=0.5)
+                  or off("HOURS_PER_PHASE", hpp, tol=0.5))
+    if combat_off:
+        findings.append(Finding(
+            rule="W104", severity="warning", path=sf.path, line=line,
+            message=(
+                f"HOUR_TICK {ht[0]:g} without combat compensation: combat "
+                "advances a fixed 2 hours per tick, so battles will run "
+                f"~{ratio:g}x longer in calendar days (dice-cadence proven "
+                "on 1.3.11). Expected roughly: COMBAT_HOURLY_MORALE_TICK "
+                f"= {morale:g}, COMBAT_DAMAGE_MULT = {dmg:g}, "
+                f"MINIMUM_COMBAT_DURATION = {min_land:g}, "
+                f"MINIMUM_NAVAL_COMBAT_DURATION = {min_naval:g}, "
+                f"HOURS_PER_PHASE = {hpp:g} (nearest integer). If the mod "
+                "compensates through modifiers or script instead, this is "
+                "intentional.")))
+
+    if ht[0] > 24:
+        pct = 24.0 / ht[0]
+        findings.append(Finding(
+            rule="W104", severity="warning", path=sf.path, line=line,
+            message=(
+                f"HOUR_TICK {ht[0]:g} is longer than a day. A tick spans "
+                f"{ht[0] / 24:.2f} days but daily systems only process one "
+                f"day per tick, so every day-denominated mechanic runs at "
+                f"~{pct:.0%} speed (sieges, parliament, recovery rates, "
+                "education...). Each one needs hand-scaling; systems you "
+                "miss drift silently (cross-validated on 1.3.11).")))
+    return findings

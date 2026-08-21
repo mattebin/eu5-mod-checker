@@ -69,6 +69,15 @@ RULE_HELP = {
     "P001": "The checker could not fully read this part of the file, so "
             "findings after this point may be missing. Usually caused by "
             "unbalanced brackets or quotes.",
+    "W103": "This gui file completely replaces a vanilla gui file. After "
+            "every game patch it silently undoes whatever Paradox changed "
+            "in that window. Not a bug - a reminder to re-compare it after "
+            "each patch.",
+    "W104": "This mod changes the tick length without rescaling the "
+            "systems that run per tick, so parts of the game will run "
+            "slower in calendar time than vanilla. The message shows the "
+            "correct values to use. If the mod compensates through "
+            "scripts or modifiers instead, this is intentional.",
 }
 
 
