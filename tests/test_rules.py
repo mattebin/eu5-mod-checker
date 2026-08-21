@@ -366,3 +366,63 @@ def test_w104_silent_on_vanilla_tick(mod):
     assert "W104" not in run_ids(mod)
 
 
+# automatic fixes
+
+def _fix(mod, vanilla=None):
+    from eu5lint.engine import run as _run
+    from eu5lint.fixes import apply_fixes
+    findings, _ = _run(mod, vanilla)
+    done = apply_fixes(findings, mod)
+    return done
+
+
+def test_fix_e005_adds_bom(mod):
+    write(mod, "loading_screen/common/defines/zz.txt",
+          "NGame = {\n\tHOUR_TICK = 2\n}\n")
+    assert "E005" in run_ids(mod)
+    _fix(mod)
+    assert "E005" not in run_ids(mod)
+
+
+def test_fix_e006_joins_split_string(mod):
+    write(mod, "main_menu/localization/english/x_l_english.yml",
+          'l_english:\n KEY: "one\ntwo"\n', bom=True)
+    assert "E006" in run_ids(mod)
+    _fix(mod)
+    assert "E006" not in run_ids(mod)
+    text = (mod / "main_menu/localization/english/x_l_english.yml"
+            ).read_text(encoding="utf-8-sig")
+    assert '"one\\ntwo"' in text
+
+
+def test_fix_w104_writes_compensation(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 6
+}
+NUnit = {
+	ARMY_MOVEMENT_SPEED = 0.13
+	NAVY_MOVEMENT_SPEED = 0.5
+}
+""", bom=True)
+    assert "W104" in run_ids(mod)
+    done = _fix(mod)
+    assert any("movement" in d for d in done)
+    assert "W104" not in run_ids(mod)
+    text = (mod / "loading_screen/common/defines/zz.txt"
+            ).read_text(encoding="utf-8-sig")
+    assert "ARMY_MOVEMENT_SPEED = 0.39" in text
+    assert "COMBAT_HOURLY_MORALE_TICK = 0.03" in text
+
+
+def test_fix_w102_renames_identical_copy(mod, vanilla):
+    write(vanilla, "game/in_game/common/topography/00_default.txt",
+          "flatlands = { }\n", bom=True)
+    write(mod, "in_game/common/topography/00_default.txt",
+          "flatlands = { }\n", bom=True)
+    assert "W102" in run_ids(mod, vanilla)
+    _fix(mod, vanilla)
+    assert "W102" not in run_ids(mod, vanilla)
+    assert (mod / "in_game/common/topography/00_default.txt.eu5lint-removed"
+            ).exists()
+
+

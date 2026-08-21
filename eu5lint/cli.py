@@ -55,6 +55,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "continue_game.json when omitted. Used to warn when the game "
             "is newer than the version the rules were verified on."))
     parser.add_argument(
+        "--fix", action="store_true",
+        help=(
+            "apply the automatic fixes for findings that can be repaired "
+            "mechanically with confidence (BOM, split loc strings, "
+            "do-nothing identical overrides, tick compensation values), "
+            "then re-run the check"))
+    parser.add_argument(
         "--format", choices=("text", "json"), default="text")
     parser.add_argument(
         "--rules", help="comma-separated rule ids to run (default: all)")
@@ -100,6 +107,15 @@ def main(argv: list[str] | None = None) -> int:
     notice, _is_warning = version_notice(detected_version)
 
     findings, skipped = run(mod_path, vanilla, enabled, disabled)
+
+    if args.fix:
+        from .fixes import apply_fixes
+        applied = apply_fixes(findings, mod_path)
+        for line in applied:
+            print(f"FIXED   {line}")
+        if applied:
+            print()
+            findings, skipped = run(mod_path, vanilla, enabled, disabled)
 
     errors = sum(1 for f in findings if f.severity == "error")
     warnings = sum(1 for f in findings if f.severity == "warning")

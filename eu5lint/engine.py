@@ -34,6 +34,9 @@ class Finding:
     path: Path
     line: int
     message: str
+    # Set when the finding can be fixed mechanically with confidence:
+    # a short human description of what the fix will do.
+    fixable: str | None = None
 
     def sort_key(self):
         return (SEVERITY_ORDER.get(self.severity, 3), str(self.path), self.line)

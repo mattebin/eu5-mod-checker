@@ -43,6 +43,17 @@ python -m eu5lint path\to\your\mod --vanilla "D:\Games\Europa Universalis V"
 | W103 | Full-file overrides of vanilla `.gui` files | Same patch-rot class as W102: gui files are whole-file-wins, so each override silently reverts vanilla's future changes to that window. |
 | W104 | `HOUR_TICK` changed without drift compensation | Movement accrues per tick and combat advances a fixed 2 hours per tick (both measured on 1.3.11), so an unrescaled tick change slows them in calendar time; ticks over 24h also undersample every daily system. The finding prints the correct compensation values. |
 
+## Automatic fixes
+
+`--fix` (CLI) or the "Fix automatically" button (EU5 Mod Checker) repairs
+the findings that can be fixed mechanically with confidence: adds missing
+BOMs (E005), joins split localization strings with `
+` (E006), renames
+do-nothing identical override copies out of the load path (W102/W103,
+reversible - renamed, never deleted), and writes the correct tick
+compensation values into the defines (W104, ticks up to 24h). Everything
+needing design intent stays a finding.
+
 ## The one-digit demo
 
 We took a published tech tree mod (3156 advances, all green in game and

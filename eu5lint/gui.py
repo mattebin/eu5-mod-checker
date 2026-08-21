@@ -165,6 +165,9 @@ class App(tk.Tk):
         self.save_btn = ttk.Button(bottom, text="Save report",
                                    command=self.save, state="disabled")
         self.save_btn.pack(side="right")
+        self.fix_btn = ttk.Button(bottom, text="Fix automatically",
+                                  command=self.fix, state="disabled")
+        self.fix_btn.pack(side="right", padx=8)
 
     # ---------------------------------------------------------- actions
     def browse(self):
@@ -221,6 +224,11 @@ class App(tk.Tk):
                 f"{counts['error']} problems, {counts['warning']} warnings, "
                 f"{counts['info']} notes. Click a line for what to do."))
         self.save_btn.configure(state="normal" if findings else "disabled")
+        n_fix = sum(1 for f in findings if f.fixable)
+        self.fix_btn.configure(
+            state="normal" if n_fix else "disabled",
+            text=f"Fix automatically ({n_fix})" if n_fix
+            else "Fix automatically")
 
     def show_detail(self, _event):
         sel = self.tree.selection()
@@ -233,6 +241,33 @@ class App(tk.Tk):
         self.detail.delete("1.0", "end")
         self.detail.insert("1.0", text)
         self.detail.configure(state="disabled")
+
+    def fix(self):
+        fixable = [f for f in self.findings if f.fixable]
+        if not fixable:
+            return
+        plan = "
+".join(sorted({f"- {f.fixable}" for f in fixable}))
+        if not messagebox.askyesno(
+                "EU5 Mod Checker",
+                f"Apply {len(fixable)} automatic fix(es)?
+
+{plan}
+
+"
+                "Only these things change, nothing else is touched. "
+                "Removed files are renamed, not deleted."):
+            return
+        from .fixes import apply_fixes
+        done = apply_fixes(self.findings, self.mod_path)
+        messagebox.showinfo("EU5 Mod Checker",
+                            "Done:
+" + "
+".join(done) +
+                            "
+
+Re-checking now.")
+        self.check()
 
     def save(self):
         if not self.findings:

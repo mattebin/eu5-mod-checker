@@ -214,6 +214,7 @@ def defines_bom(ctx: Context) -> list[Finding]:
         if not raw.startswith(UTF8_BOM):
             findings.append(Finding(
                 rule="E005", severity="warning", path=sf.path, line=1,
+                fixable="Add the UTF-8 BOM to the file",
                 message=(
                     "defines file has no UTF-8 BOM. The engine logs a "
                     "lexer warning ('should be in utf8-bom encoding') "
@@ -245,6 +246,7 @@ def loc_raw_newline(ctx: Context) -> list[Finding]:
             if after.count('"') % 2 == 1:
                 findings.append(Finding(
                     rule="E006", severity="error", path=lf.path, line=lineno,
+                    fixable="Join the split string with the \n escape",
                     message=(
                         "localization value opens a quote that never closes "
                         "on this line. A real newline splits the string and "
@@ -333,6 +335,7 @@ def override_drift(ctx: Context) -> list[Finding]:
         if mod_lines == van_lines:
             findings.append(Finding(
                 rule="W102", severity="info", path=sf.path, line=1,
+                fixable="Rename the do-nothing copy to .eu5lint-removed",
                 message=(
                     f"identical copy of vanilla {sf.rel}. It does nothing "
                     "today but will silently revert this file's future "
@@ -379,6 +382,8 @@ def gui_override_drift(ctx: Context) -> list[Finding]:
         same = " (identical copy, does nothing today)" if diff == 0 else             f" ({diff} changed lines)"
         findings.append(Finding(
             rule="W103", severity="info", path=path, line=1,
+            fixable=("Rename the do-nothing copy to .eu5lint-removed"
+                     if diff == 0 else None),
             message=(
                 f"full-file override of vanilla {rel}{same}. Gui files "
                 "replace the vanilla file completely, so after every game "
@@ -457,6 +462,7 @@ def tick_drift(ctx: Context) -> list[Finding]:
     if off("ARMY_MOVEMENT_SPEED", army) or off("NAVY_MOVEMENT_SPEED", navy):
         findings.append(Finding(
             rule="W104", severity="warning", path=sf.path, line=line,
+            fixable="Write the correct movement values into this file",
             message=(
                 f"HOUR_TICK {ht[0]:g} without movement compensation: "
                 "movement accrues per tick, so armies and navies will "
@@ -478,6 +484,7 @@ def tick_drift(ctx: Context) -> list[Finding]:
     if combat_off:
         findings.append(Finding(
             rule="W104", severity="warning", path=sf.path, line=line,
+            fixable="Write the correct combat values into this file",
             message=(
                 f"HOUR_TICK {ht[0]:g} without combat compensation: combat "
                 "advances a fixed 2 hours per tick, so battles will run "
