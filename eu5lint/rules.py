@@ -620,3 +620,90 @@ def unregistered_define(ctx: Context) -> list[Finding]:
                     rule="S002", severity="error", path=sf.path,
                     line=kv.line, message=msg))
     return findings
+
+
+# Keys inside auto/static modifier blocks that are structure, not
+# modifier grants (requires_real/hide_effects/scales_with verified live
+# in a 23k-subscriber mod; game_data is E003's job in auto modifiers).
+MODIFIER_STRUCTURE_KEYS = {"potential_trigger", "game_data",
+                           "requires_real", "hide_effects", "scales_with"}
+
+
+@rule("S003", "Unknown modifier key in a modifier block",
+      needs_vanilla=True)
+def unknown_modifier_key(ctx: Context) -> list[Finding]:
+    """Modifier keys are engine truth: every grantable key is listed in
+    vanilla's modifier_type_definitions registry. A key in an auto or
+    static modifier block that is in neither the registry nor the engine
+    binary is a typo - it loads without any error and grants nothing."""
+    import re
+    known = ctx.modifier_type_names()
+    if not known:
+        return []
+    key_re = re.compile(r"^[a-z_][a-z0-9_]*$")
+    findings: list[Finding] = []
+    for db in ("auto_modifiers", "static_modifiers"):
+        for sf in ctx.mod.db_files(db):
+            try:
+                parsed = sf.parsed()
+            except OSError:
+                continue
+            for kv in parsed.root.key_values():
+                if not kv.is_block:
+                    continue
+                for inner in kv.value.key_values():
+                    key = inner.key
+                    if (key in MODIFIER_STRUCTURE_KEYS
+                            or has_entry_mode(key)
+                            or not key_re.match(key)
+                            or key in known):
+                        continue
+                    exe = ctx.exe_bytes()
+                    if exe and key.encode() in exe:
+                        continue
+                    close = difflib.get_close_matches(key, known, n=1,
+                                                      cutoff=0.7)
+                    hint = (f" Did you mean '{close[0]}'?" if close else "")
+                    findings.append(Finding(
+                        rule="S003", severity="warning", path=sf.path,
+                        line=inner.line,
+                        message=(
+                            f"'{key}' in '{kv.key}' is not a modifier the "
+                            "engine registers (checked the game's modifier "
+                            "registry and your eu5.exe). It loads without "
+                            f"any error and grants nothing.{hint}")))
+    return findings
+
+
+@rule("S004", "Same define set twice inside the mod")
+def duplicate_define(ctx: Context) -> list[Finding]:
+    """Defines resolve last-filename-wins per key (proven on 1.3.11), so
+    two definitions of the same key inside one mod means one of them
+    silently loses. Almost always an accident."""
+    seen: dict[str, tuple] = {}
+    findings: list[Finding] = []
+    for sf in sorted(ctx.mod.db_files("defines"), key=lambda s: s.rel):
+        try:
+            parsed = sf.parsed()
+        except OSError:
+            continue
+        for block in parsed.root.key_values():
+            if not block.is_block:
+                continue
+            for kv in block.value.key_values():
+                if kv.is_block or not kv.key or not kv.key[0].isupper():
+                    continue
+                ident = f"{block.key}.{kv.key}"
+                if ident in seen:
+                    first_rel, first_line = seen[ident]
+                    findings.append(Finding(
+                        rule="S004", severity="warning", path=sf.path,
+                        line=kv.line,
+                        message=(
+                            f"{kv.key} is already set in {first_rel} line "
+                            f"{first_line}. Defines are last-filename-wins "
+                            "per key, so one of the two silently loses. "
+                            "Keep one.")))
+                else:
+                    seen[ident] = (sf.rel, kv.line)
+    return findings

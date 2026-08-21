@@ -432,6 +432,51 @@ NUnit = {
     assert "under NGame, not NUnit" in msgs
 
 
+# S003 unknown modifier key
+
+def test_s003_flags_typo_modifier(mod, vanilla):
+    write(vanilla,
+          "game/main_menu/common/modifier_type_definitions/00.txt",
+          "country_cabinet_efficiency = { }\nlocal_unrest = { }\n",
+          bom=True)
+    write(mod, "in_game/common/auto_modifiers/m.txt",
+          "m = {\n\tcountr_cabinet_efficiency = -0.1\n}\n", bom=True)
+    from eu5lint.engine import run as _run
+    findings, _ = _run(mod, vanilla.parent / "eu5")
+    hits = [f for f in findings if f.rule == "S003"]
+    assert hits and "country_cabinet_efficiency" in hits[0].message
+
+
+def test_s003_silent_on_registered_and_structure(mod, vanilla):
+    write(vanilla,
+          "game/main_menu/common/modifier_type_definitions/00.txt",
+          "country_cabinet_efficiency = { }\n", bom=True)
+    write(mod, "in_game/common/auto_modifiers/m.txt",
+          "m = {\n\tpotential_trigger = { always = yes }\n"
+          "\tscales_with = something\n"
+          "\tcountry_cabinet_efficiency = -0.1\n}\n", bom=True)
+    from eu5lint.engine import run as _run
+    findings, _ = _run(mod, vanilla.parent / "eu5")
+    assert not [f for f in findings if f.rule == "S003"]
+
+
+# S004 duplicate define
+
+def test_s004_flags_duplicate_define(mod):
+    write(mod, "loading_screen/common/defines/a.txt",
+          "NGame = {\n\tHOUR_TICK = 2\n}\n", bom=True)
+    write(mod, "loading_screen/common/defines/b.txt",
+          "NGame = {\n\tHOUR_TICK = 6\n}\n", bom=True)
+    assert "S004" in run_ids(mod)
+
+
+def test_s004_silent_on_single_definition(mod):
+    write(mod, "loading_screen/common/defines/a.txt",
+          "NGame = {\n\tHOUR_TICK = 2\n}\nNUnit = {\n\tHOUR_TICK = 2\n}\n",
+          bom=True)
+    assert "S004" not in run_ids(mod)
+
+
 # automatic fixes
 
 def _fix(mod, vanilla=None):

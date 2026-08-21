@@ -87,6 +87,13 @@ RULE_HELP = {
             "real define placed in the wrong N block. Either way the game "
             "ignores it silently. The message says where it actually "
             "belongs. Checked against your own eu5.exe.",
+    "S003": "This key inside a modifier block is not a modifier the "
+            "engine registers, so it grants nothing and no error is "
+            "shown. Almost always a typo. The message suggests the "
+            "closest real modifier name.",
+    "S004": "The same define is set twice in this mod. The game keeps "
+            "whichever file loads last and silently drops the other, so "
+            "one of the two values never applies. Delete one.",
     "W104": "This mod changes the tick length without rescaling the "
             "systems that run per tick, so parts of the game will run "
             "slower in calendar time than vanilla. The message shows the "

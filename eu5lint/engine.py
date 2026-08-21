@@ -238,6 +238,25 @@ class Context:
             self._db_keys[db] = keys if blocks >= 10 else set()
         return self._db_keys[db] or None
 
+    _modifier_names: set[str] | None = None
+
+    def modifier_type_names(self) -> set[str] | None:
+        """Every grantable modifier key, from vanilla's
+        modifier_type_definitions registry (engine truth, self-updating)."""
+        if self.vanilla is None:
+            return None
+        if self._modifier_names is None:
+            names: set[str] = set()
+            for sf in self.vanilla.db_files("modifier_type_definitions"):
+                try:
+                    parsed = sf.parsed()
+                except OSError:
+                    continue
+                for kv in parsed.root.key_values():
+                    names.add(kv.key)
+            self._modifier_names = names
+        return self._modifier_names or None
+
     def exe_bytes(self) -> bytes | None:
         """The game exe, for define-registry validation."""
         if self._exe_bytes is None:

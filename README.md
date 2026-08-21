@@ -47,6 +47,8 @@ longest. After that checks are quick.
 | P001 | Anything the checker itself could not parse | So a broken region never silently hides findings behind it. |
 | S001 | A field name vanilla never uses in that database | Unknown keys load without any error and do nothing. The corpus comes from your installed game plus the engine itself, so typos get caught and rare-but-real keys pass. Suggests the closest real name. |
 | S002 | A define the engine does not register, or a real define in the wrong N block | Checked against your own eu5.exe. Both cases load silently and do nothing. The wrong-block case tells you which block it actually belongs in. |
+| S003 | An unknown modifier key inside an auto or static modifier block | Checked against the game's modifier registry and your eu5.exe. Unknown modifier keys grant nothing, silently. Suggests the closest real name. |
+| S004 | The same define set twice inside one mod | Defines are last-filename-wins per key, so one of the two silently loses. |
 
 ## Automatic fixes
 
