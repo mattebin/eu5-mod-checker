@@ -22,6 +22,13 @@ from .engine import run
 
 MOD_DIR = Path.home() / "Documents/Paradox Interactive/Europa Universalis V/mod"
 
+
+def icon_path() -> Path | None:
+    import sys
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    ico = base / "eu5.ico"
+    return ico if ico.is_file() else None
+
 SEVERITY_LABEL = {"error": "Problem", "warning": "Warning", "info": "Note"}
 
 # Plain-language explanation per rule, shown when a finding is clicked.
@@ -85,6 +92,12 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("EU5 Mod Checker")
+        ico = icon_path()
+        if ico:
+            try:
+                self.iconbitmap(str(ico))
+            except tk.TclError:
+                pass
         self.geometry("980x640")
         self.minsize(760, 480)
 
