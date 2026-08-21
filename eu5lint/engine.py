@@ -244,17 +244,23 @@ def is_suppressed(finding: Finding, parsed: ParsedFile | None) -> bool:
     return not rules_at_line or finding.rule in rules_at_line
 
 
+def scan_vanilla(vanilla_path: Path) -> "Tree":
+    """Scan the game tree once; callers may cache and pass to run()."""
+    game_dir = vanilla_path / "game"
+    return Tree.scan(game_dir if game_dir.is_dir() else vanilla_path)
+
+
 def run(mod_path: Path, vanilla_path: Path | None,
         enabled: set[str] | None = None,
-        disabled: set[str] | None = None) -> tuple[list[Finding], list[str]]:
+        disabled: set[str] | None = None,
+        vanilla_tree: "Tree | None" = None) -> tuple[list[Finding], list[str]]:
     """Run every applicable rule. Returns (findings, skipped_rule_ids)."""
     from . import rules  # noqa: F401  (registers rules on import)
 
     mod = Tree.scan(mod_path)
-    vanilla = None
-    if vanilla_path is not None:
-        game_dir = vanilla_path / "game"
-        vanilla = Tree.scan(game_dir if game_dir.is_dir() else vanilla_path)
+    vanilla = vanilla_tree
+    if vanilla is None and vanilla_path is not None:
+        vanilla = scan_vanilla(vanilla_path)
     ctx = Context(mod=mod, vanilla=vanilla)
 
     findings: list[Finding] = []

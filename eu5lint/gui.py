@@ -17,8 +17,10 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+import time
+
 from .cli import find_vanilla
-from .engine import run
+from .engine import run, scan_vanilla
 from .fixes import DATA_DIR, FixSession, apply_fixes
 
 HISTORY_FILE = DATA_DIR / "history.log"
@@ -119,6 +121,9 @@ class App(tk.Tk):
         self.findings = []
         self.mod_path: Path | None = None
         self.fix_session = FixSession()
+        self._vanilla_tree = None
+        self._checking = False
+        self._check_started = 0.0
         self.history_lines: list[str] = []
         self.history_box: tk.Text | None = None
         try:
@@ -206,13 +211,27 @@ class App(tk.Tk):
             return
         self.mod_path = self.mods[self.combo.current()][1]
         self.check_btn.configure(state="disabled")
-        self.summary.configure(text="Checking...")
         self.tree.delete(*self.tree.get_children())
+        self._checking = True
+        self._check_started = time.monotonic()
+        self._animate_dots(1)
         threading.Thread(target=self._run_lint, daemon=True).start()
+
+    def _animate_dots(self, n: int):
+        if not self._checking:
+            return
+        elapsed = int(time.monotonic() - self._check_started)
+        first = (self._vanilla_tree is None and self.vanilla is not None)
+        note = "  (first check reads the whole game folder, this one "                "takes the longest)" if first and elapsed > 3 else ""
+        self.summary.configure(text=f"Checking{'.' * n} {elapsed}s{note}")
+        self.after(400, self._animate_dots, n % 3 + 1)
 
     def _run_lint(self):
         try:
-            findings, skipped = run(self.mod_path, self.vanilla)
+            if self.vanilla is not None and self._vanilla_tree is None:
+                self._vanilla_tree = scan_vanilla(self.vanilla)
+            findings, skipped = run(self.mod_path, self.vanilla,
+                                    vanilla_tree=self._vanilla_tree)
         except Exception as exc:  # surface, never crash the window
             self.after(0, lambda: self._done(None, str(exc)))
             return
@@ -220,6 +239,7 @@ class App(tk.Tk):
         self.after(0, lambda: self._done(findings, None))
 
     def _done(self, findings, error):
+        self._checking = False
         self.check_btn.configure(state="normal")
         if error:
             self.summary.configure(text="Could not check this folder.")
