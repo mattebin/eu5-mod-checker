@@ -383,6 +383,55 @@ def test_looks_like_mod(tmp_path):
     assert looks_like_mod(empty)
 
 
+# S001 unknown key
+
+def _corpus(n=12):
+    return "".join("b%d = {\n\tcost = 1\n\tpotential = { }\n}\n" % i
+                   for i in range(n))
+
+
+def test_s001_flags_typo_key(mod, vanilla):
+    write(vanilla, "game/in_game/common/wargoals/00_default.txt",
+          _corpus(), bom=True)
+    write(mod, "in_game/common/wargoals/mine.txt",
+          "mine = {\n\tcsot = 2\n}\n", bom=True)
+    from eu5lint.engine import run as _run
+    findings, _ = _run(mod, vanilla.parent / "eu5")
+    hits = [f for f in findings if f.rule == "S001"]
+    assert hits and "Did you mean 'cost'" in hits[0].message
+
+
+def test_s001_silent_on_vanilla_key(mod, vanilla):
+    write(vanilla, "game/in_game/common/wargoals/00_default.txt",
+          _corpus(), bom=True)
+    write(mod, "in_game/common/wargoals/mine.txt",
+          "mine = {\n\tcost = 2\n}\n", bom=True)
+    assert "S001" not in run_ids(mod, vanilla)
+
+
+# S002 define registry
+
+def test_s002_wrong_block_and_bogus_key(mod):
+    from eu5lint.engine import Context, Tree
+    from eu5lint.rules import unregistered_define
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 6
+	BOGUS_KEY_XYZ = 1
+}
+NUnit = {
+	HOUR_TICK = 6
+}
+""", bom=True)
+    ctx = Context(mod=Tree.scan(mod), vanilla=None)
+    ctx._exe_bytes = (b"junk.?AVCDefineRegistryHelper_NGameHOUR_TICK"
+                      b"@NDefines@@junk")
+    found = unregistered_define(ctx)
+    msgs = " | ".join(f.message for f in found)
+    assert len(found) == 2
+    assert "BOGUS_KEY_XYZ" in msgs
+    assert "under NGame, not NUnit" in msgs
+
+
 # automatic fixes
 
 def _fix(mod, vanilla=None):

@@ -45,6 +45,8 @@ longest. After that checks are quick.
 | W103 | Full-file overrides of vanilla `.gui` files | Same patch-rot class as W102: gui files are whole-file-wins, so each override silently reverts vanilla's future changes to that window. |
 | W104 | `HOUR_TICK` changed without drift compensation | Movement accrues per tick and combat advances a fixed 2 hours per tick (both measured on 1.3.11), so an unrescaled tick change slows them in calendar time. Ticks over 24h also undersample every daily system. The finding prints the correct compensation values for your tick. |
 | P001 | Anything the checker itself could not parse | So a broken region never silently hides findings behind it. |
+| S001 | A field name vanilla never uses in that database | Unknown keys load without any error and do nothing. The corpus comes from your installed game plus the engine itself, so typos get caught and rare-but-real keys pass. Suggests the closest real name. |
+| S002 | A define the engine does not register, or a real define in the wrong N block | Checked against your own eu5.exe. Both cases load silently and do nothing. The wrong-block case tells you which block it actually belongs in. |
 
 ## Automatic fixes
 
@@ -86,9 +88,9 @@ re-run against every game patch before the verified version is bumped.
 The tool states which game version its rules were verified on and warns
 you when your game is newer.
 
-This is not a schema validator. CWTools checks your syntax while you
-type and is worth using alongside this. This tool only knows about
-mistakes that pass every syntax check and still do nothing.
+Structure errors (broken braces, split strings) and unknown names are
+covered by P001, E006, S001 and S002. For live checking while you type,
+CWTools in VS Code is worth using alongside this.
 
 Found another silent trap? Open an issue with a small repro. Rules only
 get added once the behavior is confirmed against the live game.

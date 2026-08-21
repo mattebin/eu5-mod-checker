@@ -206,9 +206,49 @@ def all_rules() -> list[tuple[str, str, bool, RuleFn]]:
 class Context:
     mod: Tree
     vanilla: Tree | None
+    vanilla_path: "Path | None" = None
     _mod_advances: dict[str, Advance] | None = None
     _vanilla_advances: dict[str, Advance] | None = None
     _vanilla_static_names: set[str] | None = None
+    _db_keys: dict[str, set[str]] | None = None
+    _exe_bytes: bytes | None = None
+
+    def vanilla_db_keys(self, db: str) -> set[str] | None:
+        """Field names vanilla uses at depth 1 inside blocks of this
+        database. None when vanilla is unavailable or the corpus is too
+        small to judge against."""
+        if self.vanilla is None:
+            return None
+        if self._db_keys is None:
+            self._db_keys = {}
+        if db not in self._db_keys:
+            keys: set[str] = set()
+            blocks = 0
+            for sf in self.vanilla.db_files(db):
+                try:
+                    parsed = sf.parsed()
+                except OSError:
+                    continue
+                for kv in parsed.root.key_values():
+                    if not kv.is_block:
+                        continue
+                    blocks += 1
+                    for inner in kv.value.key_values():
+                        keys.add(inner.key)
+            self._db_keys[db] = keys if blocks >= 10 else set()
+        return self._db_keys[db] or None
+
+    def exe_bytes(self) -> bytes | None:
+        """The game exe, for define-registry validation."""
+        if self._exe_bytes is None:
+            if self.vanilla_path is None:
+                return None
+            exe = self.vanilla_path / "binaries" / "eu5.exe"
+            try:
+                self._exe_bytes = exe.read_bytes() if exe.is_file() else b""
+            except OSError:
+                self._exe_bytes = b""
+        return self._exe_bytes or None
 
     def mod_advances(self) -> dict[str, Advance]:
         if self._mod_advances is None:
@@ -277,7 +317,7 @@ def run(mod_path: Path, vanilla_path: Path | None,
     vanilla = vanilla_tree
     if vanilla is None and vanilla_path is not None:
         vanilla = scan_vanilla(vanilla_path)
-    ctx = Context(mod=mod, vanilla=vanilla)
+    ctx = Context(mod=mod, vanilla=vanilla, vanilla_path=vanilla_path)
 
     findings: list[Finding] = []
     skipped: list[str] = []

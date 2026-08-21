@@ -129,3 +129,21 @@ researched from start, as the rule predicts.
 Standard Jomini load behavior, relied on by every full-file override in
 the verified mods; the linter reports the override surface as a re-diff
 checklist rather than claiming a defect.
+
+
+## S001 - unknown field name (verified 2026-08-21)
+
+Live calibration against real mods: a transposed key (`csot` for `cost`)
+is flagged with the correct suggestion, while `shown_in_encyclopedia` in
+a 46k-subscriber UI mod (an engine-known key vanilla never uses) passes
+via the exe-strings fallback. Corpus and fallback both come from the
+installed game, so the rule cannot go stale.
+
+## S002 - unregistered define (verified 2026-08-21)
+
+Against the live 1.3.11 exe: `HOUR_TICK` placed in NUnit is flagged with
+"exists in the engine but under NGame" (the wrong-block trap), a
+misspelled `ARMY_MOVEMENT_SPEDE` is flagged as not registered anywhere,
+and all 22 defines of the Responsive Universalis family pass. The RTTI
+registry technique behind it is the same one used to verify every define
+this tool's own rules reference.

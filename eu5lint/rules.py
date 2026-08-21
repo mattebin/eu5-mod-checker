@@ -493,7 +493,8 @@ def tick_drift(ctx: Context) -> list[Finding]:
                 f"= {morale:g}, COMBAT_DAMAGE_MULT = {dmg:g}, "
                 f"MINIMUM_COMBAT_DURATION = {min_land:g}, "
                 f"MINIMUM_NAVAL_COMBAT_DURATION = {min_naval:g}, "
-                f"HOURS_PER_PHASE = {hpp:g} (nearest integer). If the mod "
+                f"HOURS_PER_PHASE = {max(1, round(hpp))} (closest safe "
+                "integer). If the mod "
                 "compensates through modifiers or script instead, this is "
                 "intentional.")))
 
@@ -508,4 +509,114 @@ def tick_drift(ctx: Context) -> list[Finding]:
                 f"~{pct:.0%} speed (sieges, parliament, recovery rates, "
                 "education...). Each one needs hand-scaling; systems you "
                 "miss drift silently (cross-validated on 1.3.11).")))
+    return findings
+
+
+# Databases where depth-1 keys are author-invented names, not fields.
+S001_SKIP_DBS = {"defines", "script_values", "scripted_effects",
+                 "scripted_triggers", "scripted_guis", "scripted_lists",
+                 "scripted_modifiers", "scripted_rules", "on_action",
+                 "customizable_localization", "auto_modifiers"}
+S001_KEY_RE = None
+
+
+@rule("S001", "Field name vanilla never uses in this database",
+      needs_vanilla=True)
+def unknown_key(ctx: Context) -> list[Finding]:
+    """Derived syntax check: vanilla's own files define which field names
+    exist per database. A depth-1 key that vanilla never uses anywhere in
+    that database is almost always a typo. The corpus comes from the
+    installed game, so it updates itself every patch."""
+    import re
+    global S001_KEY_RE
+    if S001_KEY_RE is None:
+        S001_KEY_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+    findings: list[Finding] = []
+    for sf in ctx.mod.scripts:
+        db = sf.db
+        if db is None or db in S001_SKIP_DBS:
+            continue
+        known = ctx.vanilla_db_keys(db)
+        if not known:
+            continue
+        try:
+            parsed = sf.parsed()
+        except OSError:
+            continue
+        for kv in parsed.root.key_values():
+            if not kv.is_block:
+                continue
+            for inner in kv.value.key_values():
+                key = inner.key
+                if has_entry_mode(key) or not S001_KEY_RE.match(key):
+                    continue
+                if key in known:
+                    continue
+                exe = ctx.exe_bytes()
+                if exe and key.encode() in exe:
+                    continue  # engine knows it, vanilla just never uses it
+                close = difflib.get_close_matches(key, known, n=1,
+                                                  cutoff=0.7)
+                hint = (f" Did you mean '{close[0]}'?" if close else
+                        " If the key is real and vanilla just never uses"
+                        " it, suppress this with # eu5lint:ignore S001.")
+                findings.append(Finding(
+                    rule="S001", severity="warning", path=sf.path,
+                    line=inner.line,
+                    message=(
+                        f"'{key}' in '{kv.key}' is not a field vanilla "
+                        f"ever uses in {db}. Unknown keys load without "
+                        f"any error and do nothing.{hint}")))
+    return findings
+
+
+@rule("S002", "Define not registered in the engine", needs_vanilla=True)
+def unregistered_define(ctx: Context) -> list[Finding]:
+    """Every real define registers RTTI in the exe as
+    CDefineRegistryHelper_<Block><KEY>. An override whose block+key pair
+    is absent is silently inert - including a real key placed in the
+    wrong N block, the classic defines trap. Validated against the
+    player's own eu5.exe, so it updates itself every patch."""
+    exe = ctx.exe_bytes()
+    if exe is None:
+        return []
+    findings: list[Finding] = []
+    for sf in ctx.mod.db_files("defines"):
+        try:
+            parsed = sf.parsed()
+        except OSError:
+            continue
+        for block in parsed.root.key_values():
+            if not block.is_block or not block.key.startswith("N"):
+                continue
+            for kv in block.value.key_values():
+                key = kv.key
+                if not key or not key[0].isupper():
+                    continue
+                probe = f"CDefineRegistryHelper_{block.key}{key}@".encode()
+                if probe in exe:
+                    continue
+                # Registered under a different block?
+                right = None
+                i = exe.find(key.encode() + b"@NDefines")
+                if i > 0:
+                    start = exe.rfind(b"CDefineRegistryHelper_",
+                                      max(0, i - 80), i)
+                    if start > 0:
+                        blob = exe[start + 22:i].decode("ascii", "replace")
+                        if blob.startswith("N") and blob.isidentifier():
+                            right = blob
+                if right:
+                    msg = (f"{key} exists in the engine but under "
+                           f"{right}, not {block.key}. In this block it "
+                           "is silently ignored - move it to "
+                           f"{right} = {{ ... }}.")
+                else:
+                    msg = (f"{key} is not a define the engine registers "
+                           "anywhere (checked your eu5.exe). It loads "
+                           "without error and does nothing - check the "
+                           "spelling against the game's defines files.")
+                findings.append(Finding(
+                    rule="S002", severity="error", path=sf.path,
+                    line=kv.line, message=msg))
     return findings

@@ -79,6 +79,14 @@ RULE_HELP = {
             "every game patch it silently undoes whatever Paradox changed "
             "in that window. Not a bug - a reminder to re-compare it after "
             "each patch.",
+    "S001": "This field name never appears in vanilla's files for this "
+            "database and the engine does not know it either, so it is "
+            "almost certainly a typo. Unknown keys load without any error "
+            "and do nothing. The message suggests the closest real name.",
+    "S002": "This define does not exist in the game's engine, or it is a "
+            "real define placed in the wrong N block. Either way the game "
+            "ignores it silently. The message says where it actually "
+            "belongs. Checked against your own eu5.exe.",
     "W104": "This mod changes the tick length without rescaling the "
             "systems that run per tick, so parts of the game will run "
             "slower in calendar time than vanilla. The message shows the "
