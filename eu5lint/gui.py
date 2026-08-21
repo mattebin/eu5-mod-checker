@@ -20,7 +20,7 @@ from tkinter import filedialog, messagebox, ttk
 import time
 
 from .cli import find_vanilla
-from .engine import run, scan_vanilla
+from .engine import looks_like_mod, run, scan_vanilla
 from .fixes import DATA_DIR, FixSession, apply_fixes
 
 HISTORY_FILE = DATA_DIR / "history.log"
@@ -210,6 +210,13 @@ class App(tk.Tk):
                                 "mod folder.")
             return
         self.mod_path = self.mods[self.combo.current()][1]
+        if not looks_like_mod(self.mod_path):
+            messagebox.showinfo(
+                "EU5 Mod Checker",
+                "That folder does not look like an EU5 mod (no in_game, "
+                "loading_screen, main_menu or similar folder inside). "
+                "Pick the mod folder itself, the one that contains those.")
+            return
         self.check_btn.configure(state="disabled")
         self.tree.delete(*self.tree.get_children())
         self._checking = True

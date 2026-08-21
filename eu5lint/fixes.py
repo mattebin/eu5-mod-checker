@@ -33,7 +33,8 @@ class FixSession:
     """Backups and undo for all fixes applied during one app run."""
 
     def __init__(self):
-        self.stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self.stamp = (datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                      + f"_{os.getpid()}")
         self.dir = BACKUP_ROOT / self.stamp
         # Ordered operation log, oldest first. Each op is
         # ("content", original_path, backup_path) or ("rename", src, dst).
@@ -135,7 +136,7 @@ def _fix_w104(finding: Finding, ctx: Context, session: FixSession) -> str:
 
     defines = _mod_defines(ctx)
     ht = defines.get("HOUR_TICK")
-    if ht is None or ht[0] == 2 or ht[0] > 24:
+    if ht is None or ht[0] <= 0 or ht[0] == 2 or ht[0] > 24:
         return "skipped (tick state changed or above 24h)"
     ratio = ht[0] / 2.0
 

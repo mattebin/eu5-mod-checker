@@ -244,6 +244,22 @@ def is_suppressed(finding: Finding, parsed: ParsedFile | None) -> bool:
     return not rules_at_line or finding.rule in rules_at_line
 
 
+MOD_MARKER_DIRS = {"in_game", "loading_screen", "main_menu", "common",
+                   "gui", "localization", "events", "gfx", "map_data",
+                   "sound", ".metadata"}
+
+
+def looks_like_mod(path: Path) -> bool:
+    """Cheap preflight: does this folder look like an EU5 mod at all?
+    Prevents accidentally scanning huge unrelated folders (drive roots, the game
+    install, Documents) which reads as a hang."""
+    try:
+        names = {p.name.lower() for p in path.iterdir() if p.is_dir()}
+    except OSError:
+        return False
+    return bool(names & MOD_MARKER_DIRS)
+
+
 def scan_vanilla(vanilla_path: Path) -> "Tree":
     """Scan the game tree once; callers may cache and pass to run()."""
     game_dir = vanilla_path / "game"

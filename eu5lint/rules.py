@@ -441,7 +441,7 @@ def tick_drift(ctx: Context) -> list[Finding]:
     system. This rule does the arithmetic and prints the correct values."""
     defines = _mod_defines(ctx)
     ht = defines.get("HOUR_TICK")
-    if ht is None or ht[0] == TICK_VANILLA["HOUR_TICK"]:
+    if ht is None or ht[0] == TICK_VANILLA["HOUR_TICK"] or ht[0] <= 0:
         return []
     ratio = ht[0] / TICK_VANILLA["HOUR_TICK"]
     sf, line = ht[1], ht[2]

@@ -91,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
     if not mod_path.is_dir():
         print(f"error: mod path not found: {mod_path}", file=sys.stderr)
         return 2
+    from .engine import looks_like_mod
+    if not looks_like_mod(mod_path):
+        print(f"error: {mod_path} does not look like an EU5 mod folder "
+              "(no in_game/loading_screen/main_menu/common inside). "
+              "Point at the mod folder itself.", file=sys.stderr)
+        return 2
 
     vanilla = None if args.no_vanilla else find_vanilla(args.vanilla)
     if args.vanilla and vanilla is None:

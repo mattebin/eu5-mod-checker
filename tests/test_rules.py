@@ -366,6 +366,23 @@ def test_w104_silent_on_vanilla_tick(mod):
     assert "W104" not in run_ids(mod)
 
 
+def test_w104_no_crash_on_zero_or_garbage_tick(mod):
+    write(mod, "loading_screen/common/defines/zz.txt", """NGame = {
+	HOUR_TICK = 0
+}
+""", bom=True)
+    assert "W104" not in run_ids(mod)
+
+
+def test_looks_like_mod(tmp_path):
+    from eu5lint.engine import looks_like_mod
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert not looks_like_mod(empty)
+    (empty / "in_game").mkdir()
+    assert looks_like_mod(empty)
+
+
 # automatic fixes
 
 def _fix(mod, vanilla=None):
