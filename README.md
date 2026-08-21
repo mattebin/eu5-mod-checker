@@ -9,6 +9,15 @@ rule in this tool is one of those traps, found the hard way while
 maintaining live Workshop mods on EU5 1.3.x, then verified by bisecting
 against the real game. None of them are documented anywhere else.
 
+## EU5 Mod Checker (no install)
+
+Not a Python person? Download **EU5 Mod Checker.exe** from the
+[latest release](https://github.com/mattebin/eu5-mod-lint/releases/latest),
+double click it, pick your mod folder and press Check mod. Same rules,
+plain language explanations, and a Fix automatically button for the
+problems that can be repaired safely (everything is backed up first and
+one click reverts it). No installer, single portable file.
+
 ## Quickstart
 
 Python 3.10+, no dependencies.
