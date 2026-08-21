@@ -1,6 +1,6 @@
-# eu5-mod-lint
+# EU5 Mod Checker
 
-A linter for Europa Universalis V mods. It catches the mistakes the game
+A checker for Europa Universalis V mods. It catches the mistakes the game
 loads **without any error** and simply ignores.
 
 EU5's engine accepts a lot of broken input silently. The files parse,
@@ -12,7 +12,7 @@ against the real game. None of them are documented anywhere else.
 ## EU5 Mod Checker (no install)
 
 Not a Python person? Download **EU5 Mod Checker.exe** from the
-[latest release](https://github.com/mattebin/eu5-mod-lint/releases/latest),
+[latest release](https://github.com/mattebin/eu5-mod-checker/releases/latest),
 double click it, pick your mod folder and press Check mod. Same rules,
 plain language explanations, and a Fix automatically button for the
 problems that can be repaired safely (everything is backed up first and
@@ -23,8 +23,8 @@ one click reverts it). No installer, single portable file.
 Python 3.10+, no dependencies.
 
 ```
-git clone https://github.com/mattebin/eu5-mod-lint
-cd eu5-mod-lint
+git clone https://github.com/mattebin/eu5-mod-checker
+cd eu5-mod-checker
 python -m eu5lint path\to\your\mod
 ```
 
